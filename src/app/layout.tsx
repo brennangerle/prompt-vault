@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'Prompt Vault',
+  title: 'The Prompt Keeper',
   description: 'Your personal library for crafting and sharing powerful prompts.',
 };
 

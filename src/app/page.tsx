@@ -3,6 +3,7 @@
 import * as React from 'react';
 import type { Prompt } from '@/lib/types';
 import {
+  BookMarked,
   Folder,
   Globe,
   User,
@@ -23,19 +24,18 @@ import {
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
 import { PromptCard } from '@/components/prompt-card';
-import { VaultIcon } from '@/components/icons';
 import { QuickPromptForm } from '@/components/quick-prompt-form';
 
 const initialPrompts: Prompt[] = [];
 type SharingScope = 'private' | 'team' | 'community';
 
 const scopeData: { id: SharingScope; label: string; icon: React.ElementType }[] = [
-  { id: 'private', label: 'My Vault', icon: User },
+  { id: 'private', label: 'My Keeper', icon: User },
   { id: 'team', label: 'Team', icon: Users },
   { id: 'community', label: 'Community', icon: Globe },
 ];
 
-export default function PromptVaultPage() {
+export default function PromptKeeperPage() {
   const [prompts, setPrompts] = React.useState<Prompt[]>(initialPrompts);
   const [selectedTag, setSelectedTag] = React.useState<string | 'All'>('All');
   const [selectedScope, setSelectedScope] = React.useState<SharingScope>('private');
@@ -66,7 +66,7 @@ export default function PromptVaultPage() {
 
   const scopeFilteredPrompts = React.useMemo(() => {
     if (selectedScope === 'private') {
-      // "My Vault" shows all prompts created by the user, regardless of sharing status.
+      // "My Keeper" shows all prompts created by the user, regardless of sharing status.
       return prompts;
     }
     // "Team" and "Community" views only show prompts with the corresponding sharing status.
@@ -91,9 +91,9 @@ export default function PromptVaultPage() {
         <Sidebar className="dark">
           <SidebarHeader>
             <div className="flex items-center gap-2 p-2">
-              <VaultIcon className="size-8 text-primary" />
+              <BookMarked className="size-8 text-primary" />
               <span className="text-lg font-semibold text-sidebar-foreground">
-                Prompt Vault
+                The Prompt Keeper
               </span>
             </div>
           </SidebarHeader>
@@ -166,7 +166,7 @@ export default function PromptVaultPage() {
               <div className="flex min-h-[240px] w-full flex-col items-center justify-center rounded-lg border bg-card p-8 text-center">
                 <h2 className="text-xl font-semibold text-foreground">No Prompts Found</h2>
                 <p className="mt-2 max-w-md text-muted-foreground">
-                  There are no prompts in this view. Try a different scope or add a new prompt to your private vault.
+                  There are no prompts in this view. Try a different scope or add a new prompt to your private keeper.
                 </p>
               </div>
             )}
