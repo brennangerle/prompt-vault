@@ -9,7 +9,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Tooltip,
   TooltipContent,
@@ -23,11 +22,12 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu"
-import { Copy, Check, Wand2, Share2, MoreVertical, Trash2 } from 'lucide-react';
+import { Copy, Check, Wand2, Share2, MoreVertical, Trash2, Pencil } from 'lucide-react';
 import type { Prompt } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { OptimizePromptDialog } from './optimize-prompt-dialog';
 import { Badge } from './ui/badge';
+import { EditPromptDialog } from './edit-prompt-dialog';
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -36,12 +36,11 @@ interface PromptCardProps {
 }
 
 export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCardProps) {
-  const [content, setContent] = React.useState(prompt.content);
   const [isCopied, setIsCopied] = React.useState(false);
   const { toast } = useToast();
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(content);
+    navigator.clipboard.writeText(prompt.content);
     setIsCopied(true);
     toast({ title: 'Copied to clipboard!' });
     setTimeout(() => setIsCopied(false), 2000);
@@ -55,19 +54,8 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
   }
 
   const handleUpdateContent = (newContent: string) => {
-    setContent(newContent);
     onUpdatePrompt({ ...prompt, content: newContent });
   };
-
-  const handleBlur = () => {
-    if(content !== prompt.content) {
-        onUpdatePrompt({ ...prompt, content });
-        toast({
-            title: "Prompt Updated",
-            description: `"${prompt.title}" has been saved.`
-        })
-    }
-  }
 
   return (
     <Card className="flex flex-col">
@@ -83,6 +71,12 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                    <EditPromptDialog prompt={prompt} onUpdatePrompt={onUpdatePrompt}>
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          <span>Edit</span>
+                      </DropdownMenuItem>
+                    </EditPromptDialog>
                     <DropdownMenuItem onClick={handleShare}>
                         <Share2 className="mr-2 h-4 w-4" />
                         <span>Share</span>
@@ -98,13 +92,9 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
       </CardHeader>
       <CardContent className="flex-grow">
         <div className="relative">
-          <Textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onBlur={handleBlur}
-            className="min-h-[150px] font-mono text-sm leading-relaxed pr-10"
-            aria-label="Prompt content"
-          />
+          <p className="min-h-[150px] whitespace-pre-wrap rounded-md border bg-muted/50 p-3 font-mono text-sm leading-relaxed">
+            {prompt.content}
+          </p>
            <TooltipProvider>
             <Tooltip>
                 <TooltipTrigger asChild>
@@ -130,7 +120,7 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
                 <Badge key={tag} variant="secondary">{tag}</Badge>
             ))}
         </div>
-        <OptimizePromptDialog promptContent={content} onApply={handleUpdateContent}>
+        <OptimizePromptDialog promptContent={prompt.content} onApply={handleUpdateContent}>
             <Button variant="outline" className="w-full gap-2">
                 <Wand2 className="h-4 w-4 text-primary" />
                 Optimize Prompt

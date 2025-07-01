@@ -22,18 +22,15 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { Prompt } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { generatePromptMetadata } from '@/ai/flows/generate-prompt-metadata';
-import { Loader2, Wand2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 const promptFormSchema = z.object({
-  title: z.string().min(3, 'Title must be at least 3 characters.'),
   content: z.string().min(20, 'Prompt content must be at least 20 characters.'),
-  tags: z.array(z.string()).min(1, 'Please add at least one tag.'),
 });
 
 type PromptFormValues = z.infer<typeof promptFormSchema>;
@@ -47,61 +44,44 @@ export function NewPromptDialog({ children, onAddPrompt }: NewPromptDialogProps)
   const [open, setOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [isGenerated, setIsGenerated] = React.useState(false);
   const { toast } = useToast();
 
   const form = useForm<PromptFormValues>({
     resolver: zodResolver(promptFormSchema),
     defaultValues: {
-      title: '',
       content: '',
-      tags: [],
     },
   });
 
-  const handleGenerate = async () => {
-    const content = form.getValues('content');
-    if (content.length < 20) {
-      form.setError('content', {
-        type: 'manual',
-        message: 'Please enter at least 20 characters to generate details.',
-      });
-      return;
-    }
-
+  const onSubmit = async (data: PromptFormValues) => {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await generatePromptMetadata({ prompt: content });
-      form.setValue('title', result.title, { shouldValidate: true });
-      form.setValue('tags', result.tags, { shouldValidate: true });
-      setIsGenerated(true);
+      const metadata = await generatePromptMetadata({ prompt: data.content });
+      onAddPrompt({
+        content: data.content,
+        title: metadata.title,
+        tags: metadata.tags,
+      });
+      toast({
+        title: 'Prompt Added',
+        description: `"${metadata.title}" has been added to your vault.`,
+      });
+      form.reset();
+      setOpen(false);
     } catch (e) {
-      setError('Failed to generate prompt details. Please try again.');
+      setError('Failed to process prompt. Please try again.');
       console.error(e);
     } finally {
       setIsLoading(false);
     }
   };
   
-  const onSubmit = (data: PromptFormValues) => {
-    onAddPrompt(data);
-    toast({
-      title: 'Prompt Added',
-      description: `"${data.title}" has been added to your vault.`,
-    });
-    form.reset();
-    setIsGenerated(false);
-    setOpen(false);
-  };
-  
   React.useEffect(() => {
     if (!open) {
-      // Reset state when dialog closes
       form.reset();
       setIsLoading(false);
       setError(null);
-      setIsGenerated(false);
     }
   }, [open, form]);
 
@@ -135,65 +115,18 @@ export function NewPromptDialog({ children, onAddPrompt }: NewPromptDialogProps)
               )}
             />
             
-            {!isGenerated && (
-              <Button type="button" onClick={handleGenerate} disabled={isLoading} className="w-full">
-                {isLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Wand2 className="mr-2 h-4 w-4" />
-                )}
-                Generate Details
-              </Button>
-            )}
-
             {error && (
                 <Alert variant="destructive">
                     <AlertTitle>Error</AlertTitle>
                     <AlertDescription>{error}</AlertDescription>
                 </Alert>
             )}
-
-            {isGenerated && (
-              <div className="space-y-4 rounded-md border bg-muted/50 p-4">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Generate Marketing Copy" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="tags"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tags</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="e.g., Marketing, Ad Copy" 
-                          value={Array.isArray(field.value) ? field.value.join(', ') : ''}
-                          onChange={(e) => {
-                            const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
-                            field.onChange(tags);
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
             
             <DialogFooter>
-                {isGenerated && <Button type="submit" disabled={form.formState.isSubmitting}>Add Prompt</Button>}
+                <Button type="submit" disabled={isLoading || form.formState.isSubmitting} className="w-full">
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Add Prompt
+                </Button>
             </DialogFooter>
           </form>
         </Form>
