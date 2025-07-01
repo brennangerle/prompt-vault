@@ -4,6 +4,9 @@ import * as React from 'react';
 import type { Prompt } from '@/lib/types';
 import {
   Folder,
+  Globe,
+  User,
+  Users,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -15,16 +18,27 @@ import {
   SidebarMenuButton,
   SidebarInset,
   SidebarTrigger,
+  SidebarSeparator,
+  SidebarGroup,
+  SidebarGroupLabel,
 } from '@/components/ui/sidebar';
 import { PromptCard } from '@/components/prompt-card';
 import { VaultIcon } from '@/components/icons';
 import { QuickPromptForm } from '@/components/quick-prompt-form';
 
 const initialPrompts: Prompt[] = [];
+type SharingScope = 'private' | 'team' | 'community';
+
+const scopeData: { id: SharingScope; label: string; icon: React.ElementType }[] = [
+  { id: 'private', label: 'My Vault', icon: User },
+  { id: 'team', label: 'Team', icon: Users },
+  { id: 'community', label: 'Community', icon: Globe },
+];
 
 export default function PromptVaultPage() {
   const [prompts, setPrompts] = React.useState<Prompt[]>(initialPrompts);
   const [selectedTag, setSelectedTag] = React.useState<string | 'All'>('All');
+  const [selectedScope, setSelectedScope] = React.useState<SharingScope>('private');
 
   const addPrompt = (prompt: Omit<Prompt, 'id'>) => {
     const newPrompt = { ...prompt, id: Date.now().toString() };
@@ -41,16 +55,29 @@ export default function PromptVaultPage() {
     setPrompts((prev) => prev.filter((p) => p.id !== id));
   };
   
+  const handleScopeChange = (scope: SharingScope) => {
+    setSelectedScope(scope);
+    setSelectedTag('All');
+  };
+
+  const scopeFilteredPrompts = React.useMemo(() => {
+    return prompts.filter(p => {
+        if (selectedScope === 'community') return p.sharing === 'global';
+        return p.sharing === selectedScope;
+    });
+  }, [prompts, selectedScope]);
+  
   const allTags = React.useMemo(() => {
     const tagsSet = new Set<string>();
-    prompts.forEach(p => p.tags.forEach(tag => tagsSet.add(tag)));
+    scopeFilteredPrompts.forEach(p => p.tags.forEach(tag => tagsSet.add(tag)));
     return ['All', ...Array.from(tagsSet).sort()];
-  }, [prompts]);
+  }, [scopeFilteredPrompts]);
 
-  const filteredPrompts =
+  const filteredPrompts = React.useMemo(() =>
     selectedTag === 'All'
-      ? prompts
-      : prompts.filter((p) => p.tags.includes(selectedTag));
+      ? scopeFilteredPrompts
+      : scopeFilteredPrompts.filter((p) => p.tags.includes(selectedTag))
+  , [scopeFilteredPrompts, selectedTag]);
 
   return (
     <SidebarProvider>
@@ -66,19 +93,37 @@ export default function PromptVaultPage() {
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
-              {allTags.map((tag) => (
-                <SidebarMenuItem key={tag}>
+              {scopeData.map((scope) => (
+                <SidebarMenuItem key={scope.id}>
                   <SidebarMenuButton
-                    onClick={() => setSelectedTag(tag)}
-                    isActive={selectedTag === tag}
+                    onClick={() => handleScopeChange(scope.id)}
+                    isActive={selectedScope === scope.id}
                     className="gap-2"
                   >
-                    <Folder className="size-4" />
-                    <span>{tag}</span>
+                    <scope.icon className="size-4" />
+                    <span>{scope.label}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
+            <SidebarSeparator />
+            <SidebarGroup>
+              <SidebarGroupLabel>Folders</SidebarGroupLabel>
+              <SidebarMenu>
+                {allTags.map((tag) => (
+                  <SidebarMenuItem key={tag}>
+                    <SidebarMenuButton
+                      onClick={() => setSelectedTag(tag)}
+                      isActive={selectedTag === tag}
+                      className="gap-2"
+                    >
+                      <Folder className="size-4" />
+                      <span>{tag}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroup>
           </SidebarContent>
         </Sidebar>
         <SidebarInset className="flex-1">
@@ -87,16 +132,18 @@ export default function PromptVaultPage() {
               <SidebarTrigger className="md:hidden"/>
               <div>
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedTag} Prompts
+                  {scopeData.find(s => s.id === selectedScope)?.label}
                 </h1>
                 <p className="text-muted-foreground">
-                  Browse and manage your saved prompts.
+                  {selectedTag === 'All'
+                    ? 'All Prompts'
+                    : `Prompts tagged with "${selectedTag}"`}
                 </p>
               </div>
             </div>
           </header>
           <main className="flex-1 p-4 sm:p-6">
-            <QuickPromptForm onAddPrompt={addPrompt} />
+            <QuickPromptForm onAddPrompt={addPrompt} disabled={selectedScope !== 'private'} />
             {filteredPrompts.length > 0 ? (
               <div className="flex flex-col gap-4">
                 {filteredPrompts.map((prompt) => (
@@ -110,9 +157,9 @@ export default function PromptVaultPage() {
               </div>
             ) : (
               <div className="flex min-h-[240px] w-full flex-col items-center justify-center rounded-lg border bg-card p-8 text-center">
-                <h2 className="text-xl font-semibold text-foreground">Your Vault is Empty</h2>
+                <h2 className="text-xl font-semibold text-foreground">No Prompts Found</h2>
                 <p className="mt-2 max-w-md text-muted-foreground">
-                  Add a new prompt using the form above to get started.
+                  There are no prompts in this view. Try a different scope or add a new prompt to your private vault.
                 </p>
               </div>
             )}
