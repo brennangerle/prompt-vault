@@ -30,10 +30,9 @@ type PromptFormValues = z.infer<typeof promptFormSchema>;
 
 interface QuickPromptFormProps {
   onAddPrompt: (prompt: Omit<Prompt, 'id'>) => void;
-  disabled?: boolean;
 }
 
-export function QuickPromptForm({ onAddPrompt, disabled }: QuickPromptFormProps) {
+export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const { toast } = useToast();
@@ -131,7 +130,7 @@ export function QuickPromptForm({ onAddPrompt, disabled }: QuickPromptFormProps)
                 )}
                 
                 <div className="flex justify-end">
-                    <Button type="submit" disabled={isLoading || form.formState.isSubmitting || disabled} className="w-full sm:w-auto">
+                    <Button type="submit" disabled={isLoading || form.formState.isSubmitting} className="w-full sm:w-auto">
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Add Prompt to Vault
                     </Button>
