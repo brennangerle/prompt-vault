@@ -29,10 +29,10 @@ import { QuickPromptForm } from '@/components/quick-prompt-form';
 const initialPrompts: Prompt[] = [];
 type SharingScope = 'private' | 'team' | 'community';
 
-const scopeData: { id: SharingScope; label: string; icon: React.ElementType }[] = [
-  { id: 'private', label: 'My Keeper', icon: User },
-  { id: 'team', label: 'Team', icon: Users },
-  { id: 'community', label: 'Community', icon: Globe },
+const scopeData: { id: SharingScope; label: string; icon: React.ElementType; description: string; }[] = [
+  { id: 'private', label: 'My Prompt Repository', icon: User, description: 'Your personal collection. Only you can see and edit these prompts.' },
+  { id: 'team', label: 'Team Repository', icon: Users, description: 'Prompts shared with your team. Viewable by all team members.' },
+  { id: 'community', label: 'Community Showcase', icon: Globe, description: 'Discover prompts shared by the entire community.' },
 ];
 
 export default function PromptKeeperPage() {
@@ -69,7 +69,10 @@ export default function PromptKeeperPage() {
       // "My Keeper" shows all prompts created by the user, regardless of sharing status.
       return prompts;
     }
-    // "Team" and "Community" views only show prompts with the corresponding sharing status.
+    if (selectedScope === 'community') {
+      return prompts.filter(p => p.sharing === 'global');
+    }
+    // "Team" view only shows prompts with the corresponding sharing status.
     return prompts.filter(p => p.sharing === selectedScope);
   }, [prompts, selectedScope]);
   
@@ -142,7 +145,7 @@ export default function PromptKeeperPage() {
                 </h1>
                 <p className="text-muted-foreground">
                   {selectedTag === 'All'
-                    ? 'All Prompts'
+                    ? scopeData.find(s => s.id === selectedScope)?.description
                     : `Prompts tagged with "${selectedTag}"`}
                 </p>
               </div>
@@ -166,7 +169,7 @@ export default function PromptKeeperPage() {
               <div className="flex min-h-[240px] w-full flex-col items-center justify-center rounded-lg border bg-card p-8 text-center">
                 <h2 className="text-xl font-semibold text-foreground">No Prompts Found</h2>
                 <p className="mt-2 max-w-md text-muted-foreground">
-                  There are no prompts in this view. Try a different scope or add a new prompt to your private keeper.
+                  There are no prompts in this view. Try a different scope or add a new prompt to your private repository.
                 </p>
               </div>
             )}

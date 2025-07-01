@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils"
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'The Prompt Keeper',
-  description: 'Your personal library for crafting and sharing powerful prompts.',
+  title: 'Prompt Keeper: Your Prompt Repository & Sharing App',
+  description: 'A prompt repository to store, organize, and share your AI prompts with your team and the community.',
 };
 
 export default function RootLayout({

@@ -63,7 +63,7 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
       });
       toast({
         title: 'Prompt Added',
-        description: `"${metadata.title}" has been added to your keeper.`,
+        description: `"${metadata.title}" has been added to your repository.`,
       });
       form.reset();
     } catch (e) {
@@ -94,7 +94,7 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
                     <FormControl>
                         <div className="relative">
                         <Textarea
-                            placeholder="Paste your prompt here... We'll use AI to automatically generate a title and tags."
+                            placeholder="Paste your prompt here to add it to your repository. We'll use AI to automatically generate a title and tags."
                             className="min-h-[100px] font-mono pr-12"
                             {...field}
                         />
@@ -132,7 +132,7 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
                 <div className="flex justify-end">
                     <Button type="submit" disabled={isLoading || form.formState.isSubmitting} className="w-full sm:w-auto">
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Add Prompt to Keeper
+                        Add Prompt to Repository
                     </Button>
                 </div>
             </form>
