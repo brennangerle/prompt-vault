@@ -1,16 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import type { Category, Prompt } from '@/lib/types';
+import type { Prompt } from '@/lib/types';
 import {
   Folder,
   Plus,
-  Wand2,
-  Copy,
-  Share2,
-  Trash2,
-  Check,
-  MoreVertical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,32 +27,26 @@ const initialPrompts: Prompt[] = [
   {
     id: '1',
     title: 'Generate Marketing Copy',
-    description: 'A prompt to generate compelling ad copy for a new tech gadget.',
     content: 'Generate 5 variations of ad copy for a new smartwatch. The target audience is young professionals aged 25-35. Highlight features like long battery life, minimalist design, and seamless smartphone integration. The tone should be energetic and aspirational.',
-    category: 'Marketing',
+    tags: ['Marketing', 'Ad Copy'],
   },
   {
     id: '2',
     title: 'Create a React Component',
-    description: 'A prompt for generating a reusable button component in React with TypeScript.',
     content: 'Create a functional React component for a button using TypeScript. The component should accept the following props: `variant` ("primary", "secondary", "destructive"), `size` ("small", "medium", "large"), `onClick` (function), and `children`. Use Tailwind CSS for styling. Provide the full code.',
-    category: 'Development',
+    tags: ['Development', 'React'],
   },
   {
     id: '3',
     title: 'Brainstorm Blog Post Ideas',
-    description: 'A prompt to get a list of blog post ideas for a specific topic.',
     content: 'Brainstorm 10 engaging blog post titles about the future of remote work. The target audience is HR managers and company executives. The topics should cover technology, company culture, and productivity.',
-    category: 'Writing',
+    tags: ['Writing', 'Brainstorming'],
   },
 ];
 
-const categories: Category[] = ['All', 'Marketing', 'Development', 'Writing', 'Business'];
-
 export default function PromptVaultPage() {
   const [prompts, setPrompts] = React.useState<Prompt[]>(initialPrompts);
-  const [selectedCategory, setSelectedCategory] = React.useState<Category>('All');
-  const [isNewPromptDialogOpen, setIsNewPromptDialogOpen] = React.useState(false);
+  const [selectedTag, setSelectedTag] = React.useState<string | 'All'>('All');
 
   const addPrompt = (prompt: Omit<Prompt, 'id'>) => {
     const newPrompt = { ...prompt, id: Date.now().toString() };
@@ -74,11 +62,17 @@ export default function PromptVaultPage() {
   const deletePrompt = (id: string) => {
     setPrompts((prev) => prev.filter((p) => p.id !== id));
   };
+  
+  const allTags = React.useMemo(() => {
+    const tagsSet = new Set<string>();
+    prompts.forEach(p => p.tags.forEach(tag => tagsSet.add(tag)));
+    return ['All', ...Array.from(tagsSet).sort()];
+  }, [prompts]);
 
   const filteredPrompts =
-    selectedCategory === 'All'
+    selectedTag === 'All'
       ? prompts
-      : prompts.filter((p) => p.category === selectedCategory);
+      : prompts.filter((p) => p.tags.includes(selectedTag));
 
   return (
     <SidebarProvider>
@@ -94,15 +88,15 @@ export default function PromptVaultPage() {
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
-              {categories.map((category) => (
-                <SidebarMenuItem key={category}>
+              {allTags.map((tag) => (
+                <SidebarMenuItem key={tag}>
                   <SidebarMenuButton
-                    onClick={() => setSelectedCategory(category)}
-                    isActive={selectedCategory === category}
+                    onClick={() => setSelectedTag(tag)}
+                    isActive={selectedTag === tag}
                     className="gap-2"
                   >
                     <Folder className="size-4" />
-                    <span>{category}</span>
+                    <span>{tag}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -122,7 +116,7 @@ export default function PromptVaultPage() {
               <SidebarTrigger className="md:hidden"/>
               <div>
                 <h1 className="text-2xl font-bold text-foreground">
-                  {selectedCategory} Prompts
+                  {selectedTag} Prompts
                 </h1>
                 <p className="text-muted-foreground">
                   Browse and manage your saved prompts.

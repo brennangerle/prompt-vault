@@ -4,7 +4,6 @@ import * as React from 'react';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -29,8 +28,6 @@ import type { Prompt } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { OptimizePromptDialog } from './optimize-prompt-dialog';
 import { Badge } from './ui/badge';
-import { cn } from '@/lib/utils';
-
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -41,7 +38,6 @@ interface PromptCardProps {
 export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCardProps) {
   const [content, setContent] = React.useState(prompt.content);
   const [isCopied, setIsCopied] = React.useState(false);
-  const [isOptimizeOpen, setIsOptimizeOpen] = React.useState(false);
   const { toast } = useToast();
 
   const handleCopy = () => {
@@ -76,10 +72,9 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
   return (
     <Card className="flex flex-col">
       <CardHeader>
-        <div className="flex items-start justify-between">
-            <div>
+        <div className="flex items-start justify-between gap-4">
+            <div className='flex-1'>
                 <CardTitle>{prompt.title}</CardTitle>
-                <CardDescription className="pt-1">{prompt.description}</CardDescription>
             </div>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -130,7 +125,11 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
         </div>
       </CardContent>
       <CardFooter className="flex-col items-start gap-4">
-        <Badge variant="secondary">{prompt.category}</Badge>
+        <div className="flex flex-wrap gap-2">
+            {prompt.tags.map(tag => (
+                <Badge key={tag} variant="secondary">{tag}</Badge>
+            ))}
+        </div>
         <OptimizePromptDialog promptContent={content} onApply={handleUpdateContent}>
             <Button variant="outline" className="w-full gap-2">
                 <Wand2 className="h-4 w-4 text-primary" />
