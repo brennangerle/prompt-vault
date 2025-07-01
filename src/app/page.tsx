@@ -6,9 +6,11 @@ import {
   BookMarked,
   Folder,
   Globe,
-  User,
+  User as UserIcon,
   Users,
+  Settings,
 } from 'lucide-react';
+import { AuthGuard } from '@/components/auth-guard';
 import {
   Sidebar,
   SidebarProvider,
@@ -26,38 +28,100 @@ import {
 import { PromptCard } from '@/components/prompt-card';
 import { QuickPromptForm } from '@/components/quick-prompt-form';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
+import { 
+  subscribeToPrompts, 
+  createPrompt, 
+  updatePrompt, 
+  deletePrompt,
+  getPromptsBySharing 
+} from '@/lib/db';
+import { getCurrentUser } from '@/lib/auth';
+import type { User } from '@/lib/types';
 
-const initialPrompts: Prompt[] = [];
 type SharingScope = 'private' | 'team' | 'community';
 
 const scopeData: { id: SharingScope; label: string; icon: React.ElementType; description: string; }[] = [
-  { id: 'private', label: 'My Prompt Repository', icon: User, description: 'Your personal collection. Only you can see and edit these prompts.' },
-  { id: 'team', label: 'Team Repository', icon: Users, description: 'Prompts shared with your team. Viewable by all team members.' },
+  { id: 'private', label: 'My Prompt Repository', icon: UserIcon, description: 'Your personal collection. All prompts you created, regardless of sharing level.' },
+  { id: 'team', label: 'Team Repository', icon: Users, description: 'Team prompts plus community prompts. Includes everything shared with your team.' },
   { id: 'community', label: 'Community Showcase', icon: Globe, description: 'Discover prompts shared by the entire community.' },
 ];
 
 export default function PromptKeeperPage() {
-  const [prompts, setPrompts] = React.useState<Prompt[]>(initialPrompts);
+  const [prompts, setPrompts] = React.useState<Prompt[]>([]);
   const [selectedTag, setSelectedTag] = React.useState<string | 'All'>('All');
   const [selectedScope, setSelectedScope] = React.useState<SharingScope>('private');
+  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const router = useRouter();
 
-  const addPrompt = (prompt: Omit<Prompt, 'id' | 'sharing'>) => {
-    const newPrompt: Prompt = { 
-      ...prompt, 
-      id: Date.now().toString(),
-      sharing: 'private' 
+  // Get current user on component mount
+  React.useEffect(() => {
+    const initUser = async () => {
+      const user = await getCurrentUser();
+      setCurrentUser(user);
+      setIsLoading(false);
     };
-    setPrompts((prev) => [newPrompt, ...prev]);
+    initUser();
+  }, []);
+
+  // Subscribe to prompts based on selected scope
+  React.useEffect(() => {
+    if (!currentUser) return;
+
+    let unsubscribe: (() => void) | undefined;
+
+    if (selectedScope === 'private') {
+      // Subscribe to user's own prompts (all sharing levels for prompts they created)
+      unsubscribe = subscribeToPrompts((userPrompts) => {
+        setPrompts(userPrompts);
+      }, currentUser.id);
+    } else if (selectedScope === 'team') {
+      // Subscribe to team prompts (team + global with cascading access)
+      unsubscribe = subscribeToPrompts((teamPrompts) => {
+        setPrompts(teamPrompts);
+      }, undefined, 'team');
+    } else if (selectedScope === 'community') {
+      // Subscribe to community prompts (global only)
+      unsubscribe = subscribeToPrompts((globalPrompts) => {
+        setPrompts(globalPrompts);
+      }, undefined, 'global');
+    }
+
+    return unsubscribe;
+  }, [selectedScope, currentUser]);
+
+  const addPrompt = async (prompt: Omit<Prompt, 'id' | 'sharing' | 'createdBy'>) => {
+    if (!currentUser) return;
+    
+    const newPrompt: Omit<Prompt, 'id'> = { 
+      ...prompt, 
+      sharing: 'private',
+      createdBy: currentUser.id
+    };
+    
+    try {
+      await createPrompt(newPrompt);
+    } catch (error) {
+      console.error('Failed to create prompt:', error);
+    }
   };
 
-  const updatePrompt = (updatedPrompt: Prompt) => {
-    setPrompts((prev) =>
-      prev.map((p) => (p.id === updatedPrompt.id ? updatedPrompt : p))
-    );
+  const updatePromptHandler = async (updatedPrompt: Prompt) => {
+    try {
+      await updatePrompt(updatedPrompt.id, updatedPrompt);
+    } catch (error) {
+      console.error('Failed to update prompt:', error);
+    }
   };
 
-  const deletePrompt = (id: string) => {
-    setPrompts((prev) => prev.filter((p) => p.id !== id));
+  const deletePromptHandler = async (id: string) => {
+    try {
+      await deletePrompt(id);
+    } catch (error) {
+      console.error('Failed to delete prompt:', error);
+    }
   };
   
   const handleScopeChange = (scope: SharingScope) => {
@@ -66,16 +130,9 @@ export default function PromptKeeperPage() {
   };
 
   const scopeFilteredPrompts = React.useMemo(() => {
-    if (selectedScope === 'private') {
-      // "My Keeper" shows all prompts created by the user, regardless of sharing status.
-      return prompts;
-    }
-    if (selectedScope === 'community') {
-      return prompts.filter(p => p.sharing === 'global');
-    }
-    // "Team" view only shows prompts with the corresponding sharing status.
-    return prompts.filter(p => p.sharing === selectedScope);
-  }, [prompts, selectedScope]);
+    // Prompts are already filtered by the database queries in useEffect
+    return prompts;
+  }, [prompts]);
   
   const allTags = React.useMemo(() => {
     const tagsSet = new Set<string>();
@@ -89,16 +146,35 @@ export default function PromptKeeperPage() {
       : scopeFilteredPrompts.filter((p) => p.tags.includes(selectedTag))
   , [scopeFilteredPrompts, selectedTag]);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
+
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen">
+    <AuthGuard>
+      <SidebarProvider>
+        <div className="flex min-h-screen">
         <Sidebar className="dark">
           <SidebarHeader>
-            <div className="flex items-center gap-2 p-2">
-              <BookMarked className="size-8 text-primary" />
-              <span className="text-lg font-semibold text-sidebar-foreground">
-                The Prompt Keeper
-              </span>
+            <div className="flex items-center justify-between p-2">
+              <div className="flex items-center gap-2">
+                <BookMarked className="size-8 text-primary" />
+                <span className="text-lg font-semibold text-sidebar-foreground">
+                  The Prompt Keeper
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push('/settings')}
+                className="h-8 w-8"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
             </div>
           </SidebarHeader>
           <SidebarContent>
@@ -160,8 +236,8 @@ export default function PromptKeeperPage() {
                   <PromptCard
                     key={prompt.id}
                     prompt={prompt}
-                    onUpdatePrompt={updatePrompt}
-                    onDeletePrompt={deletePrompt}
+                    onUpdatePrompt={updatePromptHandler}
+                    onDeletePrompt={deletePromptHandler}
                     isEditable={selectedScope === 'private'}
                   />
                 ))}
@@ -178,7 +254,8 @@ export default function PromptKeeperPage() {
             )}
           </main>
         </div>
-      </div>
-    </SidebarProvider>
+        </div>
+      </SidebarProvider>
+    </AuthGuard>
   );
 }

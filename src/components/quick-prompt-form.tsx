@@ -29,7 +29,7 @@ const promptFormSchema = z.object({
 type PromptFormValues = z.infer<typeof promptFormSchema>;
 
 interface QuickPromptFormProps {
-  onAddPrompt: (prompt: Omit<Prompt, 'id'>) => void;
+  onAddPrompt: (prompt: Omit<Prompt, 'id' | 'sharing' | 'createdBy'>) => void;
 }
 
 export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
@@ -59,7 +59,6 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
         content: data.content,
         title: metadata.title,
         tags: metadata.tags,
-        sharing: 'private',
       });
       toast({
         title: 'Prompt Added',
