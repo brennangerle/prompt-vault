@@ -17,6 +17,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -26,13 +27,24 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { Prompt } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 
 const promptFormSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters.'),
   content: z.string().min(20, 'Prompt content must be at least 20 characters.'),
+  tags: z.string().optional(),
+  software: z.string().optional(),
 });
 
 type PromptFormValues = z.infer<typeof promptFormSchema>;
+
+const softwareOptions = ['None', 'Gemini', 'ChatGPT', 'Claude', 'Midjourney', 'DALL-E', 'Other'];
 
 interface EditPromptDialogProps {
   children: React.ReactNode;
@@ -49,11 +61,22 @@ export function EditPromptDialog({ children, prompt, onUpdatePrompt }: EditPromp
     defaultValues: {
       title: prompt.title,
       content: prompt.content,
+      tags: prompt.tags.join(', '),
+      software: prompt.software || 'None',
     },
   });
 
   const onSubmit = (data: PromptFormValues) => {
-    onUpdatePrompt({ ...prompt, ...data });
+    const newTags = data.tags?.split(',').map(tag => tag.trim()).filter(Boolean) || [];
+    const newSoftware = data.software === 'None' ? undefined : data.software;
+
+    onUpdatePrompt({ 
+        ...prompt, 
+        title: data.title,
+        content: data.content,
+        tags: newTags,
+        software: newSoftware
+    });
     toast({
       title: 'Prompt Updated',
       description: `"${data.title}" has been saved.`,
@@ -66,6 +89,8 @@ export function EditPromptDialog({ children, prompt, onUpdatePrompt }: EditPromp
       form.reset({
         title: prompt.title,
         content: prompt.content,
+        tags: prompt.tags.join(', '),
+        software: prompt.software || 'None',
       });
     }
   }, [open, prompt, form]);
@@ -77,7 +102,7 @@ export function EditPromptDialog({ children, prompt, onUpdatePrompt }: EditPromp
         <DialogHeader>
           <DialogTitle>Edit Prompt</DialogTitle>
           <DialogDescription>
-            Make changes to your prompt's title and content below.
+            Make changes to your prompt below.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -109,6 +134,48 @@ export function EditPromptDialog({ children, prompt, onUpdatePrompt }: EditPromp
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="tags"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tags</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., marketing, ad copy, social media" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Separate tags with commas.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="software"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Software / LLM</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a software..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {softwareOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

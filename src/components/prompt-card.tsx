@@ -16,22 +16,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Copy, Check, Wand2, Share2, MoreVertical, Trash2, Pencil } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Copy, Check, Wand2, Share2, MoreVertical, Trash2, Pencil, BrainCircuit } from 'lucide-react';
 import type { Prompt } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { OptimizePromptDialog } from './optimize-prompt-dialog';
 import { EditPromptDialog } from './edit-prompt-dialog';
-import { Input } from './ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/select';
-import { Label } from './ui/label';
-
-const softwareOptions = ['Gemini', 'ChatGPT', 'Claude', 'Midjourney', 'DALL-E', 'Other'];
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -41,12 +31,7 @@ interface PromptCardProps {
 
 export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCardProps) {
   const [isCopied, setIsCopied] = React.useState(false);
-  const [tagsInput, setTagsInput] = React.useState(prompt.tags.join(', '));
   const { toast } = useToast();
-
-  React.useEffect(() => {
-    setTagsInput(prompt.tags.join(', '));
-  }, [prompt.tags]);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -67,64 +52,26 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
     onUpdatePrompt({ ...prompt, content: newContent });
   };
 
-  const handleTagsBlur = () => {
-    const newTags = tagsInput.split(',').map(tag => tag.trim()).filter(Boolean);
-    if (JSON.stringify(newTags) !== JSON.stringify(prompt.tags)) {
-      onUpdatePrompt({ ...prompt, tags: newTags });
-    }
-  };
-
-  const handleSoftwareChange = (newSoftware: string) => {
-    onUpdatePrompt({ ...prompt, software: newSoftware === 'None' ? undefined : newSoftware });
-  };
-  
-  const truncatedContent =
-    prompt.content.length > 100
-      ? `${prompt.content.substring(0, 100)}...`
-      : prompt.content;
-
   return (
     <Card className="w-full">
       <div className="flex flex-col sm:flex-row sm:items-start p-4 gap-4">
-        <div className="flex-1 space-y-4">
+        <div className="flex-1 space-y-3">
           <CardTitle className="text-lg">{prompt.title}</CardTitle>
-          <p className="text-sm text-muted-foreground hidden md:block">
-            {truncatedContent}
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap font-mono bg-muted p-3 rounded-md">
+            {prompt.content}
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor={`tags-${prompt.id}`} className="text-xs text-muted-foreground">
-                Tags
-              </Label>
-              <Input
-                id={`tags-${prompt.id}`}
-                placeholder="e.g., Marketing, Ad Copy"
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                onBlur={handleTagsBlur}
-                className="h-9"
-              />
-            </div>
-            <div>
-              <Label htmlFor={`software-${prompt.id}`} className="text-xs text-muted-foreground">
-                Software / LLM
-              </Label>
-              <Select
-                value={prompt.software || ''}
-                onValueChange={handleSoftwareChange}
-              >
-                <SelectTrigger id={`software-${prompt.id}`} className="h-9">
-                  <SelectValue placeholder="Select software..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {softwareOptions.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {prompt.tags.map((tag) => (
+              <Badge key={tag} variant="secondary">
+                {tag}
+              </Badge>
+            ))}
+            {prompt.software && (
+              <Badge variant="outline" className="gap-1.5 pl-2">
+                <BrainCircuit className="h-3.5 w-3.5" />
+                {prompt.software}
+              </Badge>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
@@ -174,7 +121,7 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
               <EditPromptDialog prompt={prompt} onUpdatePrompt={onUpdatePrompt}>
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                   <Pencil className="mr-2 h-4 w-4" />
-                  <span>Edit Title/Content</span>
+                  <span>Edit</span>
                 </DropdownMenuItem>
               </EditPromptDialog>
               <DropdownMenuItem
