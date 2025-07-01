@@ -3,4 +3,5 @@ export interface Prompt {
   title: string;
   content: string;
   tags: string[];
+  software?: string;
 }

@@ -26,11 +26,21 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { Prompt } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+const softwareOptions = ['Gemini', 'ChatGPT', 'Claude', 'Midjourney', 'DALL-E', 'Other'];
 
 const promptFormSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters.'),
   content: z.string().min(20, 'Prompt content must be at least 20 characters.'),
   tags: z.array(z.string()).min(1, 'Please add at least one tag.'),
+  software: z.string().optional(),
 });
 
 type PromptFormValues = z.infer<typeof promptFormSchema>;
@@ -51,6 +61,7 @@ export function EditPromptDialog({ children, prompt, onUpdatePrompt }: EditPromp
       title: prompt.title,
       content: prompt.content,
       tags: prompt.tags,
+      software: prompt.software || '',
     },
   });
 
@@ -69,6 +80,7 @@ export function EditPromptDialog({ children, prompt, onUpdatePrompt }: EditPromp
         title: prompt.title,
         content: prompt.content,
         tags: prompt.tags,
+        software: prompt.software || '',
       });
     }
   }, [open, prompt, form]);
@@ -117,26 +129,52 @@ export function EditPromptDialog({ children, prompt, onUpdatePrompt }: EditPromp
               )}
             />
                 
-            <FormField
-              control={form.control}
-              name="tags"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tags</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="e.g., Marketing, Ad Copy" 
-                      value={Array.isArray(field.value) ? field.value.join(', ') : ''}
-                      onChange={(e) => {
-                        const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
-                        field.onChange(tags);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tags</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="e.g., Marketing, Ad Copy" 
+                        value={Array.isArray(field.value) ? field.value.join(', ') : ''}
+                        onChange={(e) => {
+                          const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
+                          field.onChange(tags);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="software"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Software / LLM</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select software..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {softwareOptions.map(option => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             
             <DialogFooter>
                 <Button type="submit" disabled={form.formState.isSubmitting}>Save Changes</Button>

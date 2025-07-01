@@ -67,10 +67,13 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
                 <p className="text-sm text-muted-foreground hidden md:block">
                     {truncatedContent}
                 </p>
-                 <div className="flex flex-wrap gap-2">
+                 <div className="flex flex-wrap items-center gap-2">
                     {prompt.tags.map(tag => (
                         <Badge key={tag} variant="secondary">{tag}</Badge>
                     ))}
+                    {prompt.software && (
+                      <Badge variant="outline">{prompt.software}</Badge>
+                    )}
                 </div>
             </div>
             <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
