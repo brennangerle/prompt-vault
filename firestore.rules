@@ -1,0 +1,52 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidPrompt() {
+      return request.resource.data.keys().hasAll(['title', 'content', 'tags', 'sharing', 'userId']) &&
+             request.resource.data.title is string &&
+             request.resource.data.content is string &&
+             request.resource.data.tags is list &&
+             request.resource.data.sharing in ['private', 'team', 'global'];
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+    
+    // Prompts collection
+    match /prompts/{promptId} {
+      // Read rules based on sharing settings
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || // Owner can always read
+        resource.data.sharing == 'global' || // Anyone authenticated can read global prompts
+        (resource.data.sharing == 'team' && resource.data.teamId == request.auth.token.teamId) // Team members can read team prompts
+      );
+      
+      // Create rule - must be authenticated and valid
+      allow create: if isAuthenticated() && 
+                      isValidPrompt() &&
+                      request.resource.data.userId == request.auth.uid;
+      
+      // Update rule - only owner can update
+      allow update: if isAuthenticated() && 
+                      resource.data.userId == request.auth.uid &&
+                      isValidPrompt() &&
+                      request.resource.data.userId == request.auth.uid; // Can't change ownership
+      
+      // Delete rule - only owner can delete
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

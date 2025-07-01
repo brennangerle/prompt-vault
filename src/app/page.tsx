@@ -8,6 +8,8 @@ import {
   Globe,
   User,
   Users,
+  LogOut,
+  Settings,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -22,12 +24,19 @@ import {
   SidebarSeparator,
   SidebarGroup,
   SidebarGroupLabel,
+  SidebarFooter,
 } from '@/components/ui/sidebar';
 import { PromptCard } from '@/components/prompt-card';
 import { QuickPromptForm } from '@/components/quick-prompt-form';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/lib/auth';
+import { AuthGuard } from '@/components/auth-guard';
+import { subscribeToPrompts, createPrompt, updatePrompt as updatePromptDb, deletePrompt as deletePromptDb } from '@/lib/db';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useRouter } from 'next/navigation';
 
-const initialPrompts: Prompt[] = [];
 type SharingScope = 'private' | 'team' | 'community';
 
 const scopeData: { id: SharingScope; label: string; icon: React.ElementType; description: string; }[] = [
@@ -37,27 +46,81 @@ const scopeData: { id: SharingScope; label: string; icon: React.ElementType; des
 ];
 
 export default function PromptKeeperPage() {
-  const [prompts, setPrompts] = React.useState<Prompt[]>(initialPrompts);
+  const [prompts, setPrompts] = React.useState<Prompt[]>([]);
   const [selectedTag, setSelectedTag] = React.useState<string | 'All'>('All');
   const [selectedScope, setSelectedScope] = React.useState<SharingScope>('private');
+  const [isLoading, setIsLoading] = React.useState(true);
+  const { user, logout } = useAuth();
+  const { toast } = useToast();
+  const router = useRouter();
 
-  const addPrompt = (prompt: Omit<Prompt, 'id' | 'sharing'>) => {
-    const newPrompt: Prompt = { 
-      ...prompt, 
-      id: Date.now().toString(),
-      sharing: 'private' 
-    };
-    setPrompts((prev) => [newPrompt, ...prev]);
-  };
+  // Subscribe to prompts based on scope
+  React.useEffect(() => {
+    if (!user) return;
 
-  const updatePrompt = (updatedPrompt: Prompt) => {
-    setPrompts((prev) =>
-      prev.map((p) => (p.id === updatedPrompt.id ? updatedPrompt : p))
+    setIsLoading(true);
+    const scope = selectedScope === 'community' ? 'global' : selectedScope;
+    
+    const unsubscribe = subscribeToPrompts(
+      user.uid,
+      scope as 'private' | 'team' | 'global',
+      (fetchedPrompts) => {
+        setPrompts(fetchedPrompts);
+        setIsLoading(false);
+      }
     );
+
+    return () => unsubscribe();
+  }, [user, selectedScope]);
+
+  const addPrompt = async (prompt: Omit<Prompt, 'id' | 'sharing'>) => {
+    if (!user) return;
+    
+    try {
+      await createPrompt(user.uid, { ...prompt, sharing: 'private' });
+      toast({
+        title: 'Prompt created',
+        description: 'Your prompt has been saved successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to create prompt. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const deletePrompt = (id: string) => {
-    setPrompts((prev) => prev.filter((p) => p.id !== id));
+  const updatePrompt = async (updatedPrompt: Prompt) => {
+    try {
+      await updatePromptDb(updatedPrompt.id, updatedPrompt);
+      toast({
+        title: 'Prompt updated',
+        description: 'Your changes have been saved.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update prompt. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const deletePrompt = async (id: string) => {
+    try {
+      await deletePromptDb(id);
+      toast({
+        title: 'Prompt deleted',
+        description: 'The prompt has been removed.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete prompt. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
   
   const handleScopeChange = (scope: SharingScope) => {
@@ -90,18 +153,19 @@ export default function PromptKeeperPage() {
   , [scopeFilteredPrompts, selectedTag]);
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen">
-        <Sidebar className="dark">
-          <SidebarHeader>
-            <div className="flex items-center gap-2 p-2">
-              <BookMarked className="size-8 text-primary" />
-              <span className="text-lg font-semibold text-sidebar-foreground">
-                The Prompt Keeper
-              </span>
-            </div>
-          </SidebarHeader>
-          <SidebarContent>
+    <AuthGuard>
+      <SidebarProvider>
+        <div className="flex min-h-screen">
+          <Sidebar className="dark">
+            <SidebarHeader>
+              <div className="flex items-center gap-2 p-2">
+                <BookMarked className="size-8 text-primary" />
+                <span className="text-lg font-semibold text-sidebar-foreground">
+                  The Prompt Keeper
+                </span>
+              </div>
+            </SidebarHeader>
+            <SidebarContent>
             <SidebarMenu>
               {scopeData.map((scope) => (
                 <SidebarMenuItem key={scope.id}>
@@ -135,6 +199,37 @@ export default function PromptKeeperPage() {
               </SidebarMenu>
             </SidebarGroup>
           </SidebarContent>
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <div className="flex flex-col gap-2 p-2">
+                  <div className="text-sm text-sidebar-foreground">
+                    {user?.email}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => router.push('/settings')}
+                    >
+                      <Settings className="size-4 mr-2" />
+                      Settings
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={logout}
+                    >
+                      <LogOut className="size-4 mr-2" />
+                      Sign Out
+                    </Button>
+                  </div>
+                </div>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
         </Sidebar>
         <div className="flex-1">
           <header className="flex items-center justify-between border-b p-4 sm:p-6">
@@ -154,7 +249,21 @@ export default function PromptKeeperPage() {
           </header>
           <main className="flex-1 p-4 sm:p-6">
             {selectedScope === 'private' && <QuickPromptForm onAddPrompt={addPrompt} />}
-            {filteredPrompts.length > 0 ? (
+            {isLoading ? (
+              <div className="flex flex-col gap-4">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <div className="space-y-3">
+                        <Skeleton className="h-4 w-2/3" />
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-3 w-4/5" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : filteredPrompts.length > 0 ? (
               <div className="flex flex-col gap-4">
                 {filteredPrompts.map((prompt) => (
                   <PromptCard
@@ -178,7 +287,8 @@ export default function PromptKeeperPage() {
             )}
           </main>
         </div>
-      </div>
-    </SidebarProvider>
+        </div>
+      </SidebarProvider>
+    </AuthGuard>
   );
 }
