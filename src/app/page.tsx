@@ -5,7 +5,6 @@ import type { Prompt } from '@/lib/types';
 import {
   Folder,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import {
   Sidebar,
   SidebarProvider,
@@ -56,7 +55,7 @@ export default function PromptVaultPage() {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen">
-        <Sidebar className="dark" collapsible="icon">
+        <Sidebar className="dark">
           <SidebarHeader>
             <div className="flex items-center gap-2 p-2">
               <VaultIcon className="size-8 text-primary" />
@@ -110,9 +109,9 @@ export default function PromptVaultPage() {
                 ))}
               </div>
             ) : (
-              <div className="flex h-full min-h-[40vh] flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card text-center">
-                <h2 className="text-xl font-medium">Your Vault is Empty</h2>
-                <p className="mt-2 text-muted-foreground">
+              <div className="flex min-h-[240px] w-full flex-col items-center justify-center rounded-lg border bg-card p-8 text-center">
+                <h2 className="text-xl font-semibold text-foreground">Your Vault is Empty</h2>
+                <p className="mt-2 max-w-md text-muted-foreground">
                   Add a new prompt using the form above to get started.
                 </p>
               </div>
