@@ -23,26 +23,7 @@ import { NewPromptDialog } from '@/components/new-prompt-dialog';
 import { PromptCard } from '@/components/prompt-card';
 import { VaultIcon } from '@/components/icons';
 
-const initialPrompts: Prompt[] = [
-  {
-    id: '1',
-    title: 'Generate Marketing Copy',
-    content: 'Generate 5 variations of ad copy for a new smartwatch. The target audience is young professionals aged 25-35. Highlight features like long battery life, minimalist design, and seamless smartphone integration. The tone should be energetic and aspirational.',
-    tags: ['Marketing', 'Ad Copy'],
-  },
-  {
-    id: '2',
-    title: 'Create a React Component',
-    content: 'Create a functional React component for a button using TypeScript. The component should accept the following props: `variant` ("primary", "secondary", "destructive"), `size` ("small", "medium", "large"), `onClick` (function), and `children`. Use Tailwind CSS for styling. Provide the full code.',
-    tags: ['Development', 'React'],
-  },
-  {
-    id: '3',
-    title: 'Brainstorm Blog Post Ideas',
-    content: 'Brainstorm 10 engaging blog post titles about the future of remote work. The target audience is HR managers and company executives. The topics should cover technology, company culture, and productivity.',
-    tags: ['Writing', 'Brainstorming'],
-  },
-];
+const initialPrompts: Prompt[] = [];
 
 export default function PromptVaultPage() {
   const [prompts, setPrompts] = React.useState<Prompt[]>(initialPrompts);
