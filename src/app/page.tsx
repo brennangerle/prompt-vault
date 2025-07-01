@@ -4,7 +4,6 @@ import * as React from 'react';
 import type { Prompt } from '@/lib/types';
 import {
   Folder,
-  Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,13 +14,12 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarFooter,
   SidebarInset,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { NewPromptDialog } from '@/components/new-prompt-dialog';
 import { PromptCard } from '@/components/prompt-card';
 import { VaultIcon } from '@/components/icons';
+import { QuickPromptForm } from '@/components/quick-prompt-form';
 
 const initialPrompts: Prompt[] = [];
 
@@ -83,13 +81,6 @@ export default function PromptVaultPage() {
               ))}
             </SidebarMenu>
           </SidebarContent>
-          <SidebarFooter>
-             <NewPromptDialog onAddPrompt={addPrompt}>
-                <Button className="w-full gap-2">
-                    <Plus /> New Prompt
-                </Button>
-            </NewPromptDialog>
-          </SidebarFooter>
         </Sidebar>
         <SidebarInset className="flex-1">
           <header className="flex items-center justify-between border-b p-4 sm:p-6">
@@ -104,16 +95,9 @@ export default function PromptVaultPage() {
                 </p>
               </div>
             </div>
-            <div className="md:hidden">
-                <NewPromptDialog onAddPrompt={addPrompt}>
-                    <Button size="icon">
-                        <Plus />
-                        <span className="sr-only">New Prompt</span>
-                    </Button>
-                </NewPromptDialog>
-            </div>
           </header>
           <main className="flex-1 p-4 sm:p-6">
+            <QuickPromptForm onAddPrompt={addPrompt} />
             {filteredPrompts.length > 0 ? (
               <div className="flex flex-col gap-4">
                 {filteredPrompts.map((prompt) => (
@@ -126,16 +110,11 @@ export default function PromptVaultPage() {
                 ))}
               </div>
             ) : (
-              <div className="flex h-full min-h-[50vh] flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card">
-                <h2 className="text-xl font-medium">No Prompts Found</h2>
-                <p className="text-muted-foreground">
-                  Add a new prompt to get started.
+              <div className="flex h-full min-h-[40vh] flex-col items-center justify-center rounded-lg border-2 border-dashed bg-card text-center">
+                <h2 className="text-xl font-medium">Your Vault is Empty</h2>
+                <p className="mt-2 text-muted-foreground">
+                  Add a new prompt using the form above to get started.
                 </p>
-                <NewPromptDialog onAddPrompt={addPrompt}>
-                    <Button className="mt-4 gap-2">
-                        <Plus /> Add Prompt
-                    </Button>
-                </NewPromptDialog>
               </div>
             )}
           </main>
