@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/sidebar';
 import { PromptCard } from '@/components/prompt-card';
 import { QuickPromptForm } from '@/components/quick-prompt-form';
+import { Card, CardContent } from '@/components/ui/card';
 
 const initialPrompts: Prompt[] = [];
 type SharingScope = 'private' | 'team' | 'community';
@@ -166,12 +167,14 @@ export default function PromptKeeperPage() {
                 ))}
               </div>
             ) : (
-              <div className="flex min-h-[240px] w-full flex-col items-center justify-center rounded-lg border bg-card p-8 text-center">
-                <h2 className="text-xl font-semibold text-foreground">No Prompts Found</h2>
-                <p className="mt-2 max-w-md text-muted-foreground">
-                  There are no prompts in this view. Try a different scope or add a new prompt to your private repository.
-                </p>
-              </div>
+              <Card className="w-full">
+                <CardContent className="flex min-h-[240px] flex-col items-center justify-center p-8 text-center">
+                  <h2 className="text-xl font-semibold text-foreground">No Prompts Found</h2>
+                  <p className="mt-2 max-w-md text-muted-foreground">
+                    There are no prompts in this view. Try a different scope or add a new prompt to your private repository.
+                  </p>
+                </CardContent>
+              </Card>
             )}
           </main>
         </div>

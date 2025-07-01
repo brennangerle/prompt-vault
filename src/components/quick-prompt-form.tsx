@@ -75,7 +75,7 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
   };
   
   return (
-    <Card className="mb-4 sm:mb-6">
+    <Card className="w-full mb-4 sm:mb-6">
         <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
                 <Plus className="size-5" />
