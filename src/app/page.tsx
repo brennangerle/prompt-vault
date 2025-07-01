@@ -58,7 +58,7 @@ export default function PromptVaultPage() {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen">
-        <Sidebar className="dark" variant="inset" collapsible="icon">
+        <Sidebar className="dark" variant="sidebar" collapsible="icon">
           <SidebarHeader>
             <div className="flex items-center gap-2 p-2">
               <VaultIcon className="size-8 text-primary" />
