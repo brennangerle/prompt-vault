@@ -92,7 +92,7 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
       </CardHeader>
       <CardContent className="flex-grow">
         <div className="relative">
-          <p className="min-h-[150px] whitespace-pre-wrap rounded-md border bg-muted/50 p-3 font-mono text-sm leading-relaxed">
+          <p className="whitespace-pre-wrap rounded-md border bg-muted/50 p-3 font-mono text-sm leading-relaxed">
             {prompt.content}
           </p>
            <TooltipProvider>
@@ -114,14 +114,14 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
            </TooltipProvider>
         </div>
       </CardContent>
-      <CardFooter className="flex-col items-start gap-4">
+      <CardFooter className="flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
             {prompt.tags.map(tag => (
                 <Badge key={tag} variant="secondary">{tag}</Badge>
             ))}
         </div>
         <OptimizePromptDialog promptContent={prompt.content} onApply={handleUpdateContent}>
-            <Button variant="outline" className="w-full gap-2">
+            <Button variant="outline" className="w-full sm:w-auto gap-2">
                 <Wand2 className="h-4 w-4 text-primary" />
                 Optimize Prompt
             </Button>

@@ -58,7 +58,7 @@ export default function PromptVaultPage() {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen">
-        <Sidebar className="dark" variant="sidebar" collapsible="icon">
+        <Sidebar className="dark" collapsible="icon">
           <SidebarHeader>
             <div className="flex items-center gap-2 p-2">
               <VaultIcon className="size-8 text-primary" />
@@ -115,7 +115,7 @@ export default function PromptVaultPage() {
           </header>
           <main className="flex-1 p-4 sm:p-6">
             {filteredPrompts.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <div className="flex flex-col gap-4">
                 {filteredPrompts.map((prompt) => (
                   <PromptCard
                     key={prompt.id}
