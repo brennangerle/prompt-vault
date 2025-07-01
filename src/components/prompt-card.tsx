@@ -97,20 +97,6 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
             </Tooltip>
           </TooltipProvider>
 
-          <OptimizePromptDialog
-            promptContent={prompt.content}
-            onApply={handleUpdateContent}
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              className="hidden sm:flex items-center gap-2"
-            >
-              <Wand2 className="h-4 w-4 text-primary" />
-              Optimize
-            </Button>
-          </OptimizePromptDialog>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
@@ -124,20 +110,15 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
                   <span>Edit</span>
                 </DropdownMenuItem>
               </EditPromptDialog>
-              <DropdownMenuItem
-                className="flex items-center sm:hidden p-0"
-                onSelect={(e) => e.preventDefault()}
+              <OptimizePromptDialog
+                promptContent={prompt.content}
+                onApply={handleUpdateContent}
               >
-                <OptimizePromptDialog
-                  promptContent={prompt.content}
-                  onApply={handleUpdateContent}
-                >
-                  <div className="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 w-full">
-                    <Wand2 className="mr-2 h-4 w-4" />
-                    <span>Optimize</span>
-                  </div>
-                </OptimizePromptDialog>
-              </DropdownMenuItem>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <Wand2 className="mr-2 h-4 w-4" />
+                  <span>Optimize</span>
+                </DropdownMenuItem>
+              </OptimizePromptDialog>
               <DropdownMenuItem onClick={handleShare}>
                 <Share2 className="mr-2 h-4 w-4" />
                 <span>Share</span>
