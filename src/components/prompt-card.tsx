@@ -29,9 +29,10 @@ interface PromptCardProps {
   prompt: Prompt;
   onUpdatePrompt: (prompt: Prompt) => void;
   onDeletePrompt: (id: string) => void;
+  isEditable: boolean;
 }
 
-export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCardProps) {
+export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable }: PromptCardProps) {
   const [isCopied, setIsCopied] = React.useState(false);
   const { toast } = useToast();
 
@@ -48,7 +49,7 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
   };
 
   const handleSharingChange = (isTeam: boolean) => {
-    if (prompt.sharing !== 'global') {
+    if (prompt.sharing !== 'global' && isEditable) {
       onUpdatePrompt({ ...prompt, sharing: isTeam ? 'team' : 'private' });
     }
   };
@@ -89,7 +90,7 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
               id={`sharing-switch-${prompt.id}`}
               checked={prompt.sharing === 'team'}
               onCheckedChange={handleSharingChange}
-              disabled={prompt.sharing === 'global'}
+              disabled={prompt.sharing === 'global' || !isEditable}
               aria-label="Toggle sharing between private and team"
             />
             <Label htmlFor={`sharing-switch-${prompt.id}`} className="text-xs text-muted-foreground whitespace-nowrap">
@@ -121,42 +122,44 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
             </Tooltip>
           </TooltipProvider>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <EditPromptDialog prompt={prompt} onUpdatePrompt={onUpdatePrompt}>
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  <span>Edit</span>
+          {isEditable && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <EditPromptDialog prompt={prompt} onUpdatePrompt={onUpdatePrompt}>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    <span>Edit</span>
+                  </DropdownMenuItem>
+                </EditPromptDialog>
+                <OptimizePromptDialog
+                  promptContent={prompt.content}
+                  onApply={handleUpdateContent}
+                >
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    <span>Optimize</span>
+                  </DropdownMenuItem>
+                </OptimizePromptDialog>
+                <DropdownMenuItem onClick={handleGlobalShare} disabled={prompt.sharing === 'global'}>
+                  <Globe className="mr-2 h-4 w-4" />
+                  <span>Share to Community</span>
                 </DropdownMenuItem>
-              </EditPromptDialog>
-              <OptimizePromptDialog
-                promptContent={prompt.content}
-                onApply={handleUpdateContent}
-              >
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                  <Wand2 className="mr-2 h-4 w-4" />
-                  <span>Optimize</span>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => onDeletePrompt(prompt.id)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  <span>Delete</span>
                 </DropdownMenuItem>
-              </OptimizePromptDialog>
-              <DropdownMenuItem onClick={handleGlobalShare} disabled={prompt.sharing === 'global'}>
-                <Globe className="mr-2 h-4 w-4" />
-                <span>Share to Community</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => onDeletePrompt(prompt.id)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                <span>Delete</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
     </Card>

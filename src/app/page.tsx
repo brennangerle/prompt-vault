@@ -40,8 +40,12 @@ export default function PromptVaultPage() {
   const [selectedTag, setSelectedTag] = React.useState<string | 'All'>('All');
   const [selectedScope, setSelectedScope] = React.useState<SharingScope>('private');
 
-  const addPrompt = (prompt: Omit<Prompt, 'id'>) => {
-    const newPrompt = { ...prompt, id: Date.now().toString() };
+  const addPrompt = (prompt: Omit<Prompt, 'id' | 'sharing'>) => {
+    const newPrompt: Prompt = { 
+      ...prompt, 
+      id: Date.now().toString(),
+      sharing: 'private' 
+    };
     setPrompts((prev) => [newPrompt, ...prev]);
   };
 
@@ -61,10 +65,12 @@ export default function PromptVaultPage() {
   };
 
   const scopeFilteredPrompts = React.useMemo(() => {
-    return prompts.filter(p => {
-        if (selectedScope === 'community') return p.sharing === 'global';
-        return p.sharing === selectedScope;
-    });
+    if (selectedScope === 'private') {
+      // "My Vault" shows all prompts created by the user, regardless of sharing status.
+      return prompts;
+    }
+    // "Team" and "Community" views only show prompts with the corresponding sharing status.
+    return prompts.filter(p => p.sharing === selectedScope);
   }, [prompts, selectedScope]);
   
   const allTags = React.useMemo(() => {
@@ -126,7 +132,7 @@ export default function PromptVaultPage() {
             </SidebarGroup>
           </SidebarContent>
         </Sidebar>
-        <SidebarInset className="flex-1">
+        <div className="flex-1">
           <header className="flex items-center justify-between border-b p-4 sm:p-6">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="md:hidden"/>
@@ -152,6 +158,7 @@ export default function PromptVaultPage() {
                     prompt={prompt}
                     onUpdatePrompt={updatePrompt}
                     onDeletePrompt={deletePrompt}
+                    isEditable={selectedScope === 'private'}
                   />
                 ))}
               </div>
@@ -164,7 +171,7 @@ export default function PromptVaultPage() {
               </div>
             )}
           </main>
-        </SidebarInset>
+        </div>
       </div>
     </SidebarProvider>
   );
