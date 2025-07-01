@@ -17,11 +17,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Check, Wand2, Share2, MoreVertical, Trash2, Pencil, BrainCircuit } from 'lucide-react';
+import { Copy, Check, Wand2, MoreVertical, Trash2, Pencil, BrainCircuit, Globe } from 'lucide-react';
 import type { Prompt } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { OptimizePromptDialog } from './optimize-prompt-dialog';
 import { EditPromptDialog } from './edit-prompt-dialog';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -41,15 +43,22 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const handleShare = () => {
-    toast({
-      title: 'Prompt Shared',
-      description: 'Your prompt is ready to be shared with your team.',
-    });
-  };
-
   const handleUpdateContent = (newContent: string) => {
     onUpdatePrompt({ ...prompt, content: newContent });
+  };
+
+  const handleSharingChange = (isTeam: boolean) => {
+    if (prompt.sharing !== 'global') {
+      onUpdatePrompt({ ...prompt, sharing: isTeam ? 'team' : 'private' });
+    }
+  };
+
+  const handleGlobalShare = () => {
+    onUpdatePrompt({ ...prompt, sharing: 'global' });
+    toast({
+      title: 'Shared to Community',
+      description: 'Your prompt is now visible to everyone.',
+    });
   };
 
   return (
@@ -75,6 +84,21 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id={`sharing-switch-${prompt.id}`}
+              checked={prompt.sharing === 'team'}
+              onCheckedChange={handleSharingChange}
+              disabled={prompt.sharing === 'global'}
+              aria-label="Toggle sharing between private and team"
+            />
+            <Label htmlFor={`sharing-switch-${prompt.id}`} className="text-xs text-muted-foreground whitespace-nowrap">
+              {prompt.sharing === 'private' && 'Private'}
+              {prompt.sharing === 'team' && 'Team'}
+              {prompt.sharing === 'global' && 'Community'}
+            </Label>
+          </div>
+
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -119,9 +143,9 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
                   <span>Optimize</span>
                 </DropdownMenuItem>
               </OptimizePromptDialog>
-              <DropdownMenuItem onClick={handleShare}>
-                <Share2 className="mr-2 h-4 w-4" />
-                <span>Share</span>
+              <DropdownMenuItem onClick={handleGlobalShare} disabled={prompt.sharing === 'global'}>
+                <Globe className="mr-2 h-4 w-4" />
+                <span>Share to Community</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

@@ -60,6 +60,7 @@ export function QuickPromptForm({ onAddPrompt, disabled }: QuickPromptFormProps)
         content: data.content,
         title: metadata.title,
         tags: metadata.tags,
+        sharing: 'private',
       });
       toast({
         title: 'Prompt Added',
