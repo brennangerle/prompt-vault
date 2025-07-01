@@ -26,8 +26,9 @@ import { Textarea } from '@/components/ui/textarea';
 import type { Prompt } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { generatePromptMetadata } from '@/ai/flows/generate-prompt-metadata';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Wand2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { OptimizePromptDialog } from './optimize-prompt-dialog';
 
 const promptFormSchema = z.object({
   content: z.string().min(20, 'Prompt content must be at least 20 characters.'),
@@ -52,6 +53,12 @@ export function NewPromptDialog({ children, onAddPrompt }: NewPromptDialogProps)
       content: '',
     },
   });
+
+  const contentValue = form.watch('content');
+
+  const handleOptimizedPromptApply = (optimizedContent: string) => {
+    form.setValue('content', optimizedContent, { shouldValidate: true });
+  };
 
   const onSubmit = async (data: PromptFormValues) => {
     setIsLoading(true);
@@ -104,11 +111,30 @@ export function NewPromptDialog({ children, onAddPrompt }: NewPromptDialogProps)
                 <FormItem>
                   <FormLabel>Prompt Content</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Enter the full prompt text here... for example: 'Create a functional React component for a button...'"
-                      className="min-h-[120px] font-mono"
-                      {...field}
-                    />
+                    <div className="relative">
+                      <Textarea
+                        placeholder="Enter the full prompt text here... for example: 'Create a functional React component for a button...'"
+                        className="min-h-[120px] font-mono pr-12"
+                        {...field}
+                      />
+                      <div className="absolute bottom-2 right-2">
+                        <OptimizePromptDialog
+                          promptContent={contentValue}
+                          onApply={handleOptimizedPromptApply}
+                        >
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            disabled={!contentValue || contentValue.length < 20}
+                          >
+                            <Wand2 className="h-4 w-4" />
+                            <span className="sr-only">Optimize Prompt</span>
+                          </Button>
+                        </OptimizePromptDialog>
+                      </div>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
