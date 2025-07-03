@@ -140,7 +140,10 @@ export async function getPromptsByUser(userId: string): Promise<Prompt[]> {
   return [];
 }
 
-export async function getPromptsBySharing(sharing: 'private' | 'team' | 'global'): Promise<Prompt[]> {
+export async function getPromptsBySharing(
+  sharing: 'private' | 'team' | 'global',
+  teamId?: string
+): Promise<Prompt[]> {
   const promptsRef = ref(database, 'prompts');
   let snapshot;
   
@@ -164,9 +167,12 @@ export async function getPromptsBySharing(sharing: 'private' | 'team' | 'global'
       ...promptsData[promptId]
     }));
     
-    // Filter for team view to include team and global prompts
-    if (sharing === 'team') {
-      prompts = prompts.filter(p => p.sharing === 'team' || p.sharing === 'global');
+    // Filter for team view to include team prompts from same team and global prompts
+    if (sharing === 'team' && teamId) {
+      prompts = prompts.filter(p => 
+        p.sharing === 'global' || 
+        (p.sharing === 'team' && p.teamId === teamId)
+      );
     }
     
     return prompts;
@@ -178,7 +184,8 @@ export async function getPromptsBySharing(sharing: 'private' | 'team' | 'global'
 export function subscribeToPrompts(
   callback: (prompts: Prompt[]) => void,
   userId?: string,
-  sharing?: 'private' | 'team' | 'global'
+  sharing?: 'private' | 'team' | 'global',
+  userTeamId?: string
 ): () => void {
   let promptsRef;
   
@@ -200,8 +207,11 @@ export function subscribeToPrompts(
       
       // Apply cascading visibility filter
       if (sharing === 'team') {
-        // Team view: show team AND global prompts (cascading access)
-        prompts = prompts.filter(p => p.sharing === 'team' || p.sharing === 'global');
+        // Team view: show team prompts (only from same team) AND global prompts
+        prompts = prompts.filter(p => 
+          p.sharing === 'global' || 
+          (p.sharing === 'team' && p.teamId === userTeamId)
+        );
       } else if (sharing === 'global') {
         // Community view: only global prompts
         prompts = prompts.filter(p => p.sharing === 'global');

@@ -39,23 +39,10 @@ import {
 import { getCurrentUser, logoutUser } from '@/lib/auth';
 import type { TeamMember, User } from '@/lib/types';
 
-// Team visibility logic
-function canViewTeam(viewerTeamId: string, targetTeamId: string): boolean {
-  if (viewerTeamId === 't1') {
-    return targetTeamId === 't1' || targetTeamId === 't2';
-  }
-  if (viewerTeamId === 't2') {
-    return targetTeamId === 't2';
-  }
-  return viewerTeamId === targetTeamId;
-}
-
 export default function SettingsPage() {
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
   const [newMemberEmail, setNewMemberEmail] = React.useState('');
   const [teamMembers, setTeamMembers] = React.useState<TeamMember[]>([]);
-  const [availableTeams, setAvailableTeams] = React.useState<string[]>([]);
-  const [selectedTeamView, setSelectedTeamView] = React.useState('');
   const [isUserAdminState, setIsUserAdminState] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
   const router = useRouter();
@@ -68,19 +55,6 @@ export default function SettingsPage() {
         if (!user) return;
         
         setCurrentUser(user);
-        setSelectedTeamView(user.teamId || '');
-        
-        // Get available teams based on permissions
-        const viewableTeams: string[] = [];
-        const allTeams = ['t1', 't2'];
-        
-        for (const team of allTeams) {
-          if (canViewTeam(user.teamId || '', team)) {
-            viewableTeams.push(team);
-          }
-        }
-        
-        setAvailableTeams(viewableTeams);
         
         // Check if user is admin
         if (user.teamId) {
@@ -98,20 +72,16 @@ export default function SettingsPage() {
     initUser();
   }, []);
 
-  // Subscribe to team members when team view changes
+  // Subscribe to team members
   React.useEffect(() => {
-    if (!selectedTeamView) return;
+    if (!currentUser?.teamId) return;
     
-    const unsubscribe = subscribeToTeamMembers(selectedTeamView, (members) => {
+    const unsubscribe = subscribeToTeamMembers(currentUser.teamId, (members) => {
       setTeamMembers(members);
     });
     
     return unsubscribe;
-  }, [selectedTeamView]);
-
-  const handleTeamViewChange = (teamId: string) => {
-    setSelectedTeamView(teamId);
-  };
+  }, [currentUser?.teamId]);
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,32 +206,8 @@ export default function SettingsPage() {
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Team Selection */}
-              {availableTeams.length > 1 && (
-                <div className="space-y-3">
-                  <Label className="text-base font-medium">View Team</Label>
-                  <div className="flex gap-2">
-                    {availableTeams.map((teamId) => (
-                      <Button
-                        key={teamId}
-                        variant={selectedTeamView === teamId ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleTeamViewChange(teamId)}
-                      >
-                        Team {teamId.toUpperCase()}
-                      </Button>
-                    ))}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {currentUser?.teamId === 't1' 
-                      ? 'As a T1 member, you can view both T1 and T2 teams.'
-                      : `You can only view your own team (${currentUser?.teamId?.toUpperCase()}).`
-                    }
-                  </p>
-                </div>
-              )}
               {/* Add Team Member */}
-              {isUserAdminState && selectedTeamView === currentUser?.teamId && (
+              {isUserAdminState && currentUser?.teamId && (
                 <div className="space-y-3">
                   <Label className="text-base font-medium">Add Team Member to {currentUser?.teamId?.toUpperCase()}</Label>
                   <form onSubmit={handleAddMember} className="flex gap-2">
@@ -283,7 +229,7 @@ export default function SettingsPage() {
               {/* Team Members List */}
               <div className="space-y-3">
                 <Label className="text-base font-medium">
-                  Team {selectedTeamView.toUpperCase()} Members ({teamMembers.length})
+                  Team {currentUser?.teamId?.toUpperCase()} Members ({teamMembers.length})
                 </Label>
                 <div className="space-y-2">
                   {teamMembers.map((member) => (
@@ -304,7 +250,7 @@ export default function SettingsPage() {
                       </div>
                       {member.role !== 'admin' && 
                        isUserAdminState && 
-                       selectedTeamView === currentUser?.teamId && (
+                       currentUser?.teamId && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="icon">

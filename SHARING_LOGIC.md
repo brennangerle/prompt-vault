@@ -1,4 +1,4 @@
-# Cascading Sharing Permissions
+# Cascading Sharing Permissions with Team-Based Access Control
 
 ## How Prompt Visibility Works
 
@@ -8,14 +8,15 @@
 - Purpose: Complete view of everything they've created
 
 ### 👥 **Team Scope** ("Team Repository") 
-- Shows: **Team prompts + Community prompts** (cascading access)
-- Logic: `sharing === 'team' OR sharing === 'global'`
-- Purpose: Team has access to both team-shared and community-shared content
+- Shows: **Team prompts (same team only) + Community prompts** (cascading access)
+- Logic: `(sharing === 'team' AND teamId === userTeamId) OR sharing === 'global'`
+- Purpose: Team members see prompts shared within their team plus community content
+- **Important**: Teams are isolated - Team 1 cannot see Team 2's prompts
 
 ### 🌍 **Community Scope** ("Community Showcase")
 - Shows: **Only community prompts** 
 - Logic: `sharing === 'global'`
-- Purpose: Public showcase of community-shared prompts
+- Purpose: Public showcase of community-shared prompts visible to all users
 
 ## Sharing Level Progression
 
@@ -25,20 +26,34 @@ Private → Team → Community
    📝      👥      🌍
 ```
 
+When a user changes sharing from **Private** to **Team**:
+- ✅ Visible to all members of the same team
+- ❌ NOT visible to members of other teams
+- ✅ Still visible in creator's **Private** scope
+
 When a user changes sharing from **Team** to **Community**:
 - ✅ Still visible in **Team** scope (cascading access)
-- ✅ Still visible in **Community** scope
+- ✅ Visible in **Community** scope to ALL users
 - ✅ Still visible in creator's **Private** scope
 
 ## Benefits
 
-1. **No Lost Access**: Teams don't lose prompts when they're shared to community
-2. **Natural Progression**: Higher sharing levels include lower levels
-3. **Creator Control**: Creators always see all their prompts in "My Repository"
-4. **Intuitive UX**: Users expect team access to include community content
+1. **Team Isolation**: Teams cannot access each other's private data
+2. **No Lost Access**: Teams don't lose prompts when they're shared to community
+3. **Natural Progression**: Higher sharing levels include lower levels within the same team
+4. **Creator Control**: Creators always see all their prompts in "My Repository"
+5. **Security**: Team-based access control prevents unauthorized access
 
 ## Database Queries
 
 - **Private**: `createdBy === userId` (all sharing levels)
-- **Team**: `sharing === 'team' OR sharing === 'global'`
+- **Team**: `(sharing === 'team' AND teamId === userTeamId) OR sharing === 'global'`
 - **Community**: `sharing === 'global'`
+
+## Access Control Matrix
+
+| Prompt Type | Creator | Same Team Member | Different Team Member | All Users |
+|-------------|---------|------------------|----------------------|-----------|
+| Private     | ✅      | ❌               | ❌                   | ❌        |
+| Team        | ✅      | ✅               | ❌                   | ❌        |
+| Community   | ✅      | ✅               | ✅                   | ✅        |

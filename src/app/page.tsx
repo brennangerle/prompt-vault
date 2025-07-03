@@ -81,7 +81,7 @@ export default function PromptKeeperPage() {
       // Subscribe to team prompts (team + global with cascading access)
       unsubscribe = subscribeToPrompts((teamPrompts) => {
         setPrompts(teamPrompts);
-      }, undefined, 'team');
+      }, undefined, 'team', currentUser.teamId);
     } else if (selectedScope === 'community') {
       // Subscribe to community prompts (global only)
       unsubscribe = subscribeToPrompts((globalPrompts) => {
@@ -92,13 +92,14 @@ export default function PromptKeeperPage() {
     return unsubscribe;
   }, [selectedScope, currentUser]);
 
-  const addPrompt = async (prompt: Omit<Prompt, 'id' | 'sharing' | 'createdBy'>) => {
+  const addPrompt = async (prompt: Omit<Prompt, 'id' | 'sharing' | 'createdBy' | 'teamId'>) => {
     if (!currentUser) return;
     
     const newPrompt: Omit<Prompt, 'id'> = { 
       ...prompt, 
       sharing: 'private',
-      createdBy: currentUser.id
+      createdBy: currentUser.id,
+      teamId: currentUser.teamId
     };
     
     try {

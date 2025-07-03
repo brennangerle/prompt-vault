@@ -11,13 +11,18 @@
     },
     "teams": {
       "$teamId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        "members": {
+          ".read": "auth != null && root.child('teams').child($teamId).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && root.child('teams').child($teamId).child('members').child(auth.uid).child('role').val() == 'admin'"
+        }
       }
     },
     "prompts": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".indexOn": ["createdBy", "sharing", "teamId"],
+      "$promptId": {
+        ".read": "(auth != null && data.child('sharing').val() == 'global') || (auth != null && data.child('createdBy').val() == auth.uid) || (auth != null && data.child('sharing').val() == 'team' && data.child('teamId').exists() && root.child('users').child(auth.uid).child('teamId').val() == data.child('teamId').val())",
+        ".write": "auth != null && (!data.exists() || data.child('createdBy').val() == auth.uid)"
+      }
     }
   }
 }

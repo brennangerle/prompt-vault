@@ -50,7 +50,17 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
 
   const handleSharingChange = (isTeam: boolean) => {
     if (prompt.sharing !== 'global' && isEditable) {
-      onUpdatePrompt({ ...prompt, sharing: isTeam ? 'team' : 'private' });
+      // When changing to team sharing, ensure teamId is set
+      const updates: Partial<Prompt> = {
+        sharing: isTeam ? 'team' : 'private'
+      };
+      
+      // If changing to private, we can optionally clear teamId
+      if (!isTeam && prompt.teamId) {
+        updates.teamId = undefined;
+      }
+      
+      onUpdatePrompt({ ...prompt, ...updates });
     }
   };
 
