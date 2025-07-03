@@ -159,12 +159,14 @@ export default function PromptKeeperPage() {
     <AuthGuard>
       <SidebarProvider>
         <div className="flex min-h-screen">
-        <Sidebar className="dark">
+        <Sidebar className="dark border-r border-sidebar-border/50">
           <SidebarHeader>
-            <div className="flex items-center justify-between p-2">
-              <div className="flex items-center gap-2">
-                <BookMarked className="size-8 text-primary" />
-                <span className="text-lg font-semibold text-sidebar-foreground">
+            <div className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-primary/20 backdrop-blur-sm">
+                  <BookMarked className="size-7 text-primary animate-glow" />
+                </div>
+                <span className="text-xl font-bold text-sidebar-foreground bg-gradient-to-r from-sidebar-foreground to-primary bg-clip-text text-transparent">
                   The Prompt Keeper
                 </span>
               </div>
@@ -172,40 +174,40 @@ export default function PromptKeeperPage() {
                 variant="ghost"
                 size="icon"
                 onClick={() => router.push('/settings')}
-                className="h-8 w-8"
+                className="h-10 w-10 rounded-full hover:bg-sidebar-accent/20 transition-all duration-300 border border-sidebar-border/30"
               >
-                <Settings className="h-4 w-4" />
+                <Settings className="h-5 w-5 text-sidebar-foreground/70 hover:text-primary transition-colors duration-300" />
               </Button>
             </div>
           </SidebarHeader>
-          <SidebarContent>
-            <SidebarMenu>
+          <SidebarContent className="px-3">
+            <SidebarMenu className="space-y-2">
               {scopeData.map((scope) => (
                 <SidebarMenuItem key={scope.id}>
                   <SidebarMenuButton
                     onClick={() => handleScopeChange(scope.id)}
                     isActive={selectedScope === scope.id}
-                    className="gap-2"
+                    className="gap-3 px-4 py-3 rounded-xl hover:bg-sidebar-accent/20 transition-all duration-300 group data-[active=true]:bg-primary/20 data-[active=true]:text-primary data-[active=true]:shadow-lg"
                   >
-                    <scope.icon className="size-4" />
-                    <span>{scope.label}</span>
+                    <scope.icon className="size-5 text-sidebar-foreground/70 group-hover:text-primary group-data-[active=true]:text-primary transition-colors duration-300" />
+                    <span className="font-medium">{scope.label}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
-            <SidebarSeparator />
+            <SidebarSeparator className="my-6 bg-sidebar-border/30" />
             <SidebarGroup>
-              <SidebarGroupLabel>Folders</SidebarGroupLabel>
-              <SidebarMenu>
+              <SidebarGroupLabel className="text-sidebar-foreground/60 text-sm font-semibold mb-3 px-4">Folders</SidebarGroupLabel>
+              <SidebarMenu className="space-y-1">
                 {allTags.map((tag) => (
                   <SidebarMenuItem key={tag}>
                     <SidebarMenuButton
                       onClick={() => setSelectedTag(tag)}
                       isActive={selectedTag === tag}
-                      className="gap-2"
+                      className="gap-3 px-4 py-2.5 rounded-lg hover:bg-sidebar-accent/10 transition-all duration-300 group data-[active=true]:bg-accent/20 data-[active=true]:text-accent"
                     >
-                      <Folder className="size-4" />
-                      <span>{tag}</span>
+                      <Folder className="size-4 text-sidebar-foreground/50 group-hover:text-accent group-data-[active=true]:text-accent transition-colors duration-300" />
+                      <span className="text-sm">{tag}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -213,15 +215,15 @@ export default function PromptKeeperPage() {
             </SidebarGroup>
           </SidebarContent>
         </Sidebar>
-        <div className="flex-1">
-          <header className="flex items-center justify-between border-b p-4 sm:p-6">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="md:hidden"/>
+        <div className="flex-1 bg-gradient-to-br from-background via-background to-primary/5">
+          <header className="flex items-center justify-between border-b border-border/50 backdrop-blur-sm bg-background/80 p-6 sm:p-8">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger className="md:hidden h-10 w-10 rounded-xl hover:bg-primary/10 transition-all duration-300"/>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">
+                <h1 className="text-3xl font-bold text-foreground bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
                   {scopeData.find(s => s.id === selectedScope)?.label}
                 </h1>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground mt-1 font-medium">
                   {selectedTag === 'All'
                     ? scopeData.find(s => s.id === selectedScope)?.description
                     : `Prompts tagged with "${selectedTag}"`}
@@ -229,10 +231,10 @@ export default function PromptKeeperPage() {
               </div>
             </div>
           </header>
-          <main className="flex-1 p-4 sm:p-6">
+          <main className="flex-1 p-6 sm:p-8">
             {selectedScope === 'private' && <QuickPromptForm onAddPrompt={addPrompt} />}
             {filteredPrompts.length > 0 ? (
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-6">
                 {filteredPrompts.map((prompt) => (
                   <PromptCard
                     key={prompt.id}
@@ -244,10 +246,13 @@ export default function PromptKeeperPage() {
                 ))}
               </div>
             ) : (
-              <Card className="w-full">
-                <CardContent className="flex min-h-[240px] flex-col items-center justify-center p-8 text-center">
-                  <h2 className="text-xl font-semibold text-foreground">No Prompts Found</h2>
-                  <p className="mt-2 max-w-md text-muted-foreground">
+              <Card className="w-full border-0 glass-light">
+                <CardContent className="flex min-h-[280px] flex-col items-center justify-center p-12 text-center">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+                    <BookMarked className="w-8 h-8 text-primary" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-foreground mb-3">No Prompts Found</h2>
+                  <p className="mt-2 max-w-md text-muted-foreground leading-relaxed">
                     There are no prompts in this view. Try a different scope or add a new prompt to your private repository.
                   </p>
                 </CardContent>

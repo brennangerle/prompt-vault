@@ -149,45 +149,57 @@ export default function SettingsPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-background">
-        <header className="border-b p-4 sm:p-6">
-          <div className="flex items-center gap-4">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+        <header className="border-b border-border/50 backdrop-blur-sm bg-background/80 p-6 sm:p-8">
+          <div className="flex items-center gap-6">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => router.push('/')}
+              className="h-12 w-12 rounded-full hover:bg-primary/10 transition-all duration-300 border border-border/30"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div className="flex items-center gap-2">
-              <BookMarked className="size-6 text-primary" />
-              <span className="text-lg font-semibold">The Prompt Keeper</span>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/20 backdrop-blur-sm">
+                <BookMarked className="size-7 text-primary animate-glow" />
+              </div>
+              <span className="text-2xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">The Prompt Keeper</span>
             </div>
-            <div className="flex items-center gap-2 ml-auto">
-              <Settings className="h-5 w-5" />
-              <span className="font-medium">Settings</span>
+            <div className="flex items-center gap-3 ml-auto bg-background/50 backdrop-blur-sm rounded-full px-4 py-2 border border-border/30">
+              <Settings className="h-6 w-6 text-primary" />
+              <span className="font-semibold text-lg">Settings</span>
             </div>
           </div>
         </header>
 
-        <main className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
+        <main className="p-6 sm:p-8 max-w-4xl mx-auto space-y-8">
           {/* Account Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Account</CardTitle>
+          <Card className="border-0 glass-light hover:shadow-xl hover:shadow-primary/10 transition-all-smooth group">
+            <CardHeader className="pb-6">
+              <CardTitle className="text-2xl font-bold flex items-center gap-3 group-hover:text-primary transition-colors duration-300">
+                <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-300">
+                  <Settings className="h-6 w-6 text-primary" />
+                </div>
+                Account
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input value={currentUser?.email || ''} disabled />
+            <CardContent className="space-y-6">
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Email</Label>
+                <Input 
+                  value={currentUser?.email || ''} 
+                  disabled 
+                  className="bg-background/50 backdrop-blur-sm border-border/50 text-base"
+                />
               </div>
-              <div className="pt-4 border-t">
+              <div className="pt-6 border-t border-border/30">
                 <Button
                   variant="outline"
                   onClick={handleLogout}
-                  className="gap-2"
+                  className="gap-3 px-6 py-3 rounded-full hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-all duration-300"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-5 w-5" />
                   Sign out
                 </Button>
               </div>
@@ -195,31 +207,33 @@ export default function SettingsPage() {
           </Card>
 
           {/* Team Management */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                <CardTitle>Team Management</CardTitle>
+          <Card className="border-0 glass-light hover:shadow-xl hover:shadow-primary/10 transition-all-smooth group">
+            <CardHeader className="pb-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-full bg-accent/10 group-hover:bg-accent/20 transition-colors duration-300">
+                  <Users className="h-6 w-6 text-accent" />
+                </div>
+                <CardTitle className="text-2xl font-bold group-hover:text-accent transition-colors duration-300">Team Management</CardTitle>
               </div>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-base leading-relaxed">
                 Manage your team members and their access to shared prompts.
               </p>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-8">
               {/* Add Team Member */}
               {isUserAdminState && currentUser?.teamId && (
-                <div className="space-y-3">
-                  <Label className="text-base font-medium">Add Team Member to {currentUser?.teamId?.toUpperCase()}</Label>
-                  <form onSubmit={handleAddMember} className="flex gap-2">
+                <div className="space-y-4 p-6 bg-background/50 backdrop-blur-sm rounded-xl border border-border/30">
+                  <Label className="text-lg font-semibold">Add Team Member to {currentUser?.teamId?.toUpperCase()}</Label>
+                  <form onSubmit={handleAddMember} className="flex gap-3">
                     <Input
                       type="email"
                       placeholder="Enter email address"
                       value={newMemberEmail}
                       onChange={(e) => setNewMemberEmail(e.target.value)}
-                      className="flex-1"
+                      className="flex-1 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20"
                     />
-                    <Button type="submit" className="gap-2">
-                      <UserPlus className="h-4 w-4" />
+                    <Button type="submit" className="gap-3 px-6 gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300">
+                      <UserPlus className="h-5 w-5" />
                       Invite
                     </Button>
                   </form>
@@ -227,24 +241,24 @@ export default function SettingsPage() {
               )}
 
               {/* Team Members List */}
-              <div className="space-y-3">
-                <Label className="text-base font-medium">
+              <div className="space-y-4">
+                <Label className="text-lg font-semibold">
                   Team {currentUser?.teamId?.toUpperCase()} Members ({teamMembers.length})
                 </Label>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {teamMembers.map((member) => (
                     <div
                       key={member.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
+                      className="flex items-center justify-between p-4 glass-light rounded-xl hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 group"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-4">
                         <div>
-                          <p className="font-medium">{member.email}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-semibold text-base group-hover:text-primary transition-colors duration-300">{member.email}</p>
+                          <p className="text-sm text-muted-foreground mt-1">
                             Joined {new Date(member.joinedAt).toLocaleDateString()}
                           </p>
                         </div>
-                        <Badge variant={member.role === 'admin' ? 'default' : 'secondary'}>
+                        <Badge variant={member.role === 'admin' ? 'default' : 'secondary'} className="px-3 py-1 font-medium">
                           {member.role}
                         </Badge>
                       </div>
@@ -253,8 +267,8 @@ export default function SettingsPage() {
                        currentUser?.teamId && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <Trash2 className="h-4 w-4" />
+                            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-destructive/10 hover:text-destructive transition-all duration-300">
+                              <Trash2 className="h-5 w-5" />
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
@@ -283,9 +297,9 @@ export default function SettingsPage() {
               </div>
 
               {/* Team Info */}
-              <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-medium mb-2">Team Features</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
+              <div className="p-6 glass-light rounded-xl border border-primary/20">
+                <h4 className="font-semibold text-lg mb-4 text-primary">Team Features</h4>
+                <ul className="text-muted-foreground space-y-2 leading-relaxed">
                   <li>• Team members can view and edit prompts shared with the team</li>
                   <li>• Only admins can invite or remove team members</li>
                   <li>• Private prompts remain visible only to their creator</li>

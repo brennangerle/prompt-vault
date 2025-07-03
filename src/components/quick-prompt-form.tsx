@@ -74,10 +74,12 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
   };
   
   return (
-    <Card className="w-full mb-4 sm:mb-6">
-        <CardHeader className="py-4">
-            <CardTitle className="text-lg flex items-center gap-2">
-                <Plus className="size-5" />
+    <Card className="w-full mb-6 sm:mb-8 border-0 glass-light group hover:shadow-xl hover:shadow-primary/10 transition-all-smooth">
+        <CardHeader className="py-5">
+            <CardTitle className="text-xl font-semibold flex items-center gap-3 text-foreground group-hover:text-primary transition-colors duration-300">
+                <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-300">
+                    <Plus className="size-5 text-primary" />
+                </div>
                 Add New Prompt
             </CardTitle>
         </CardHeader>
@@ -91,13 +93,13 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
                     <FormItem>
                     <FormLabel className="sr-only">Prompt Content</FormLabel>
                     <FormControl>
-                        <div className="relative">
+                        <div className="relative group/textarea">
                         <Textarea
                             placeholder="Paste your prompt here to add it to your repository. We'll use AI to automatically generate a title and tags."
-                            className="min-h-[100px] font-mono pr-12"
+                            className="min-h-[120px] font-mono pr-14 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 focus:bg-background/70 transition-all duration-300 resize-none"
                             {...field}
                         />
-                        <div className="absolute bottom-2 right-2">
+                        <div className="absolute bottom-3 right-3">
                             <OptimizePromptDialog
                             promptContent={contentValue}
                             onApply={handleOptimizedPromptApply}
@@ -106,7 +108,7 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                className="h-9 w-9 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-300 group-hover/textarea:shadow-lg"
                                 disabled={!contentValue || contentValue.length < 20}
                             >
                                 <Wand2 className="h-4 w-4" />
@@ -128,8 +130,12 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
                     </Alert>
                 )}
                 
-                <div className="flex justify-end">
-                    <Button type="submit" disabled={isLoading || form.formState.isSubmitting} className="w-full sm:w-auto">
+                <div className="flex justify-end pt-2">
+                    <Button 
+                        type="submit" 
+                        disabled={isLoading || form.formState.isSubmitting} 
+                        className="w-full sm:w-auto gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 font-medium px-6 py-2.5"
+                    >
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Add Prompt to Repository
                     </Button>
