@@ -98,20 +98,20 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
-          <div className="flex items-center space-x-3 bg-background/50 backdrop-blur-sm rounded-full px-3 py-2 border border-border/30">
-            <Switch
-              id={`sharing-switch-${prompt.id}`}
-              checked={prompt.sharing === 'team'}
-              onCheckedChange={handleSharingChange}
-              disabled={prompt.sharing === 'global' || !isEditable}
-              aria-label="Toggle sharing between private and team"
-            />
-            <Label htmlFor={`sharing-switch-${prompt.id}`} className="text-xs text-muted-foreground whitespace-nowrap font-medium">
-              {prompt.sharing === 'private' && 'Private'}
-              {prompt.sharing === 'team' && 'Team'}
-              {prompt.sharing === 'global' && 'Community'}
-            </Label>
-          </div>
+          {isEditable && prompt.sharing !== 'global' && (
+            <div className="flex items-center space-x-3 bg-background/50 backdrop-blur-sm rounded-full px-3 py-2 border border-border/30">
+              <Switch
+                id={`sharing-switch-${prompt.id}`}
+                checked={prompt.sharing === 'team'}
+                onCheckedChange={handleSharingChange}
+                aria-label="Toggle sharing between private and team"
+              />
+              <Label htmlFor={`sharing-switch-${prompt.id}`} className="text-xs text-muted-foreground whitespace-nowrap font-medium">
+                {prompt.sharing === 'private' && 'Private'}
+                {prompt.sharing === 'team' && 'Team'}
+              </Label>
+            </div>
+          )}
 
           <TooltipProvider>
             <Tooltip>
