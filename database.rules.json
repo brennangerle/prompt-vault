@@ -1,27 +1,39 @@
 {
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null",
+    ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'super_user' || auth != null)",
+    ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'super_user' || auth != null)",
     "users": {
       ".indexOn": "email",
+      ".read": "auth != null",
+      ".write": "auth != null",
       "$userId": {
-        ".read": "auth != null && auth.uid == $userId",
-        ".write": "auth != null && auth.uid == $userId"
+        ".read": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
+        ".write": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'super_user')"
       }
     },
+    "email-verification": {
+      ".read": true,
+      ".write": false
+    },
     "teams": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
       "$teamId": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
         "members": {
-          ".read": "auth != null && root.child('teams').child($teamId).child('members').child(auth.uid).exists()",
-          ".write": "auth != null && root.child('teams').child($teamId).child('members').child(auth.uid).child('role').val() == 'admin'"
+          ".read": "auth != null && (root.child('teams').child($teamId).child('members').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
+          ".write": "auth != null && (root.child('teams').child($teamId).child('members').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'super_user')"
         }
       }
     },
     "prompts": {
       ".indexOn": ["createdBy", "sharing", "teamId"],
+      ".read": "auth != null",
+      ".write": "auth != null",
       "$promptId": {
-        ".read": "(auth != null && data.child('sharing').val() == 'global') || (auth != null && data.child('createdBy').val() == auth.uid) || (auth != null && data.child('sharing').val() == 'team' && data.child('teamId').exists() && root.child('users').child(auth.uid).child('teamId').val() == data.child('teamId').val())",
-        ".write": "auth != null && (!data.exists() || data.child('createdBy').val() == auth.uid)"
+        ".read": "(auth != null && data.child('sharing').val() == 'global') || (auth != null && data.child('createdBy').val() == auth.uid) || (auth != null && data.child('sharing').val() == 'team' && data.child('teamId').exists() && root.child('users').child(auth.uid).child('teamId').val() == data.child('teamId').val()) || (auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user')",
+        ".write": "auth != null && ((!data.exists() || data.child('createdBy').val() == auth.uid) || root.child('users').child(auth.uid).child('role').val() == 'super_user')"
       }
     }
   }

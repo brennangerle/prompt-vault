@@ -5,7 +5,8 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  User as FirebaseUser
+  User as FirebaseUser,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { createUser, getUserByEmail, addTeamMember } from './db';
@@ -19,8 +20,35 @@ const testerAccounts = {
   'tester4@t2.com': { userId: 'tester4', teamId: 't2', role: 'member' as const },
 };
 
+// Super user account
+const superUserAccount = {
+  email: 'masterprompter@admin.com',
+  password: 'password',
+  userRole: 'super_user' as const
+};
+
 export async function loginUser(email: string, password: string = 'password123'): Promise<User> {
+  console.log('Login attempt for:', email);
   try {
+    // Check if it's the super user account
+    if (email === superUserAccount.email && password === superUserAccount.password) {
+      console.log('Super user login detected');
+      // Try to sign in with Firebase Auth first, create if doesn't exist
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        console.log('Super user Firebase auth successful');
+      } catch (authError: any) {
+        if (authError.code === 'auth/user-not-found' || authError.code === 'auth/invalid-credential') {
+          console.log('Creating Firebase auth for super user...');
+          await createUserWithEmailAndPassword(auth, email, password);
+          console.log('Super user Firebase auth created');
+        } else {
+          throw authError;
+        }
+      }
+      return await createOrGetSuperUser();
+    }
+    
     // Try to sign in with Firebase Auth
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
@@ -33,7 +61,8 @@ export async function loginUser(email: string, password: string = 'password123')
       const testerData = testerAccounts[email as keyof typeof testerAccounts];
       const userData: Omit<User, 'id'> = {
         email,
-        teamId: testerData?.teamId || 'custom'
+        teamId: testerData?.teamId || 'custom',
+        role: 'user'
       };
       
       const userId = await createUser(userData);
@@ -49,13 +78,33 @@ export async function loginUser(email: string, password: string = 'password123')
         };
         await addTeamMember(testerData.teamId, teamMember);
       }
+    } else {
+      // Ensure existing users have a role (backward compatibility)
+      if (!user.role) {
+        user.role = 'user';
+      }
     }
     
     return user;
   } catch (error: any) {
-    // If user doesn't exist, create them (for tester accounts)
+    // If user doesn't exist, check if it's super user or tester account
     if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-      return await createTesterAccount(email);
+      // Check if it's a super user trying to login
+      if (email === superUserAccount.email && password === superUserAccount.password) {
+        return await createOrGetSuperUser();
+      }
+      
+      // Check if it's a tester account
+      const testerData = testerAccounts[email as keyof typeof testerAccounts];
+      if (testerData) {
+        return await createTesterAccount(email);
+      }
+      
+      // For regular users, check if they exist in database but not in Firebase Auth
+      const dbUser = await getUserByEmail(email);
+      if (dbUser) {
+        throw new Error('User exists in database but no Firebase Auth account. Please use "First time login" to set up your password.');
+      }
     }
     throw error;
   }
@@ -75,7 +124,8 @@ async function createTesterAccount(email: string): Promise<User> {
   // Create user data in database
   const userData: Omit<User, 'id'> = {
     email,
-    teamId: testerData.teamId
+    teamId: testerData.teamId,
+    role: 'user'
   };
   
   const userId = await createUser(userData);
@@ -93,6 +143,38 @@ async function createTesterAccount(email: string): Promise<User> {
   return user;
 }
 
+async function createOrGetSuperUser(): Promise<User> {
+  try {
+    console.log('Attempting to get super user from database...');
+    // Check if super user already exists
+    let user = await getUserByEmail(superUserAccount.email);
+    
+    if (!user) {
+      console.log('Creating super user in database...');
+      // Create super user in database
+      const userData: Omit<User, 'id'> = {
+        email: superUserAccount.email,
+        role: 'super_user'
+      };
+      
+      const userId = await createUser(userData);
+      user = { id: userId, ...userData };
+      console.log('Super user created with ID:', userId);
+    } else {
+      console.log('Super user found:', user);
+      // Ensure the role is set correctly
+      if (user.role !== 'super_user') {
+        user.role = 'super_user';
+      }
+    }
+    
+    return user;
+  } catch (error) {
+    console.error('Error in createOrGetSuperUser:', error);
+    throw error;
+  }
+}
+
 export async function logoutUser(): Promise<void> {
   await signOut(auth);
 }
@@ -106,4 +188,8 @@ export async function getCurrentUser(): Promise<User | null> {
   if (!firebaseUser) return null;
   
   return await getUserByEmail(firebaseUser.email!);
+}
+
+export async function sendPasswordReset(email: string): Promise<void> {
+  await sendPasswordResetEmail(auth, email);
 }

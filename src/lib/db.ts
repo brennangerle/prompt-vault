@@ -11,10 +11,11 @@ import {
   equalTo
 } from 'firebase/database';
 import { database } from './firebase';
-import type { Prompt, User, TeamMember } from './types';
+import type { Prompt, User, TeamMember, Team } from './types';
 
 // Database structure:
 // /users/{userId} -> User
+// /teams/{teamId} -> Team
 // /teams/{teamId}/members/{userId} -> TeamMember
 // /prompts/{promptId} -> Prompt
 
@@ -23,6 +24,10 @@ export async function createUser(userData: Omit<User, 'id'>): Promise<string> {
   const usersRef = ref(database, 'users');
   const newUserRef = push(usersRef);
   await set(newUserRef, userData);
+  
+  // Also create email verification entry for first-time login
+  await createEmailVerificationEntry(userData.email, newUserRef.key!, userData.teamId);
+  
   return newUserRef.key!;
 }
 
@@ -80,6 +85,113 @@ export async function addTeamMember(teamId: string, member: TeamMember): Promise
 export async function removeTeamMember(teamId: string, memberId: string): Promise<void> {
   const memberRef = ref(database, `teams/${teamId}/members/${memberId}`);
   await remove(memberRef);
+}
+
+// Team operations
+export async function createTeam(team: Omit<Team, 'id' | 'members'>): Promise<string> {
+  const teamsRef = ref(database, 'teams');
+  const newTeamRef = push(teamsRef);
+  await set(newTeamRef, {
+    ...team,
+    createdAt: new Date().toISOString()
+  });
+  return newTeamRef.key!;
+}
+
+export async function getTeam(teamId: string): Promise<Team | null> {
+  const teamRef = ref(database, `teams/${teamId}`);
+  const snapshot = await get(teamRef);
+  
+  if (snapshot.exists()) {
+    const teamData = snapshot.val();
+    const members = teamData.members ? Object.keys(teamData.members).map(userId => ({
+      id: userId,
+      ...teamData.members[userId]
+    })) : [];
+    
+    return {
+      id: teamId,
+      name: teamData.name,
+      members,
+      createdBy: teamData.createdBy,
+      createdAt: teamData.createdAt
+    };
+  }
+  return null;
+}
+
+export async function getAllTeams(): Promise<Team[]> {
+  const teamsRef = ref(database, 'teams');
+  const snapshot = await get(teamsRef);
+  
+  if (snapshot.exists()) {
+    const teamsData = snapshot.val();
+    return Object.keys(teamsData).map(teamId => {
+      const teamData = teamsData[teamId];
+      const members = teamData.members ? Object.keys(teamData.members).map(userId => ({
+        id: userId,
+        ...teamData.members[userId]
+      })) : [];
+      
+      return {
+        id: teamId,
+        name: teamData.name,
+        members,
+        createdBy: teamData.createdBy,
+        createdAt: teamData.createdAt
+      };
+    });
+  }
+  return [];
+}
+
+export async function deleteTeam(teamId: string): Promise<void> {
+  const teamRef = ref(database, `teams/${teamId}`);
+  await remove(teamRef);
+}
+
+export async function getAllUsers(): Promise<User[]> {
+  const usersRef = ref(database, 'users');
+  const snapshot = await get(usersRef);
+  
+  if (snapshot.exists()) {
+    const usersData = snapshot.val();
+    return Object.keys(usersData).map(userId => ({
+      id: userId,
+      ...usersData[userId]
+    }));
+  }
+  return [];
+}
+
+// Special function for email verification during first-time login
+// This creates a copy of user email data in a publicly readable location
+export async function createEmailVerificationEntry(email: string, userId: string, teamId?: string): Promise<void> {
+  const emailKey = email.replace(/[.@]/g, '_'); // Firebase keys can't contain . or @
+  const verificationRef = ref(database, `email-verification/${emailKey}`);
+  await set(verificationRef, {
+    email: email,
+    userId: userId,
+    teamId: teamId,
+    createdAt: new Date().toISOString()
+  });
+}
+
+export async function verifyEmailExists(email: string): Promise<{ exists: boolean; userId?: string; email?: string; teamId?: string }> {
+  const emailKey = email.replace(/[.@]/g, '_');
+  const verificationRef = ref(database, `email-verification/${emailKey}`);
+  const snapshot = await get(verificationRef);
+  
+  if (snapshot.exists()) {
+    const data = snapshot.val();
+    return { 
+      exists: true, 
+      userId: data.userId,
+      email: data.email,
+      teamId: data.teamId
+    };
+  }
+  return { exists: false };
 }
 
 export async function isUserAdmin(userId: string, teamId: string): Promise<boolean> {

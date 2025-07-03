@@ -9,6 +9,7 @@ import {
   User as UserIcon,
   Users,
   Settings,
+  Crown,
 } from 'lucide-react';
 import { AuthGuard } from '@/components/auth-guard';
 import {
@@ -38,6 +39,7 @@ import {
   getPromptsBySharing 
 } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { isSuperUser } from '@/lib/permissions';
 import type { User } from '@/lib/types';
 
 type SharingScope = 'private' | 'team' | 'community';
@@ -170,14 +172,26 @@ export default function PromptKeeperPage() {
                   The Prompt Keeper
                 </span>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => router.push('/settings')}
-                className="h-10 w-10 rounded-full hover:bg-sidebar-accent/20 transition-all duration-300 border border-sidebar-border/30"
-              >
-                <Settings className="h-5 w-5 text-sidebar-foreground/70 hover:text-primary transition-colors duration-300" />
-              </Button>
+              <div className="flex items-center gap-2">
+                {isSuperUser(currentUser) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => router.push('/super-admin')}
+                    className="h-10 w-10 rounded-full hover:bg-primary/20 transition-all duration-300 border border-border/30"
+                  >
+                    <Crown className="h-5 w-5 text-primary" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => router.push('/settings')}
+                  className="h-10 w-10 rounded-full hover:bg-sidebar-accent/20 transition-all duration-300 border border-sidebar-border/30"
+                >
+                  <Settings className="h-5 w-5 text-sidebar-foreground/70 hover:text-primary transition-colors duration-300" />
+                </Button>
+              </div>
             </div>
           </SidebarHeader>
           <SidebarContent className="px-3">
@@ -231,7 +245,7 @@ export default function PromptKeeperPage() {
               </div>
             </div>
           </header>
-          <main className="flex-1 p-6 sm:p-8">
+          <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto space-y-8">
             {selectedScope === 'private' && <QuickPromptForm onAddPrompt={addPrompt} />}
             {filteredPrompts.length > 0 ? (
               <div className="flex flex-col gap-6">

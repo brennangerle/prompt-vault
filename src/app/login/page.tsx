@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BookMarked } from 'lucide-react';
+import { BookMarked, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { loginUser } from '@/lib/auth';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface TesterAccount {
   id: string;
@@ -27,18 +28,20 @@ export default function LoginPage() {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
     
     try {
       await loginUser(email, password);
       router.push('/');
     } catch (error: any) {
       console.error('Login failed:', error.message);
-      // Show error message to user
+      setError(error.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -101,6 +104,14 @@ export default function LoginPage() {
                 className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
               />
             </div>
+            
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
             <Button
               type="submit"
               className="w-full h-12 gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 font-semibold text-base"
@@ -138,11 +149,23 @@ export default function LoginPage() {
             </div>
           </div>
           
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            Don't have an account?{' '}
-            <Button variant="link" className="p-0 h-auto font-medium text-primary hover:text-accent transition-colors duration-300">
-              Contact your team admin
-            </Button>
+          <div className="mt-6 text-center text-sm text-muted-foreground space-y-2">
+            <div>
+              Don't have an account?{' '}
+              <Button variant="link" className="p-0 h-auto font-medium text-primary hover:text-accent transition-colors duration-300">
+                Contact your team admin
+              </Button>
+            </div>
+            <div>
+              Added to a team but no password?{' '}
+              <Button 
+                variant="link" 
+                onClick={() => router.push('/first-time-login')}
+                className="p-0 h-auto font-medium text-accent hover:text-primary transition-colors duration-300"
+              >
+                First time login
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
