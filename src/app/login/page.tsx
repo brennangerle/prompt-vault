@@ -152,9 +152,14 @@ export default function LoginPage() {
           <div className="mt-6 text-center text-sm text-muted-foreground space-y-2">
             <div>
               Don't have an account?{' '}
-              <Button variant="link" className="p-0 h-auto font-medium text-primary hover:text-accent transition-colors duration-300">
-                Contact your team admin
-              </Button>
+              <a 
+                href="https://www.thepromptkeeper.com/#contact" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="font-medium text-primary hover:text-accent transition-colors duration-300 underline decoration-dotted underline-offset-4"
+              >
+                Contact the Master Keeper
+              </a>
             </div>
             <div>
               Added to a team but no password?{' '}
