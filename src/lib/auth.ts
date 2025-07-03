@@ -23,7 +23,6 @@ const testerAccounts = {
 // Super user account
 const superUserAccount = {
   email: 'masterprompter@admin.com',
-  password: 'password',
   userRole: 'super_user' as const
 };
 
@@ -31,22 +30,21 @@ export async function loginUser(email: string, password: string = 'password123')
   console.log('Login attempt for:', email);
   try {
     // Check if it's the super user account
-    if (email === superUserAccount.email && password === superUserAccount.password) {
+    if (email === superUserAccount.email) {
       console.log('Super user login detected');
-      // Try to sign in with Firebase Auth first, create if doesn't exist
+      // Try to sign in with Firebase Auth using provided password (not hardcoded)
       try {
         await signInWithEmailAndPassword(auth, email, password);
         console.log('Super user Firebase auth successful');
+        return await createOrGetSuperUser();
       } catch (authError: any) {
-        if (authError.code === 'auth/user-not-found' || authError.code === 'auth/invalid-credential') {
-          console.log('Creating Firebase auth for super user...');
-          await createUserWithEmailAndPassword(auth, email, password);
-          console.log('Super user Firebase auth created');
+        if (authError.code === 'auth/user-not-found') {
+          // If user doesn't exist in Firebase Auth, suggest first-time login
+          throw new Error('Super user exists in database but no Firebase Auth account. Please use "First time login" to set up your password.');
         } else {
           throw authError;
         }
       }
-      return await createOrGetSuperUser();
     }
     
     // Try to sign in with Firebase Auth
@@ -90,8 +88,8 @@ export async function loginUser(email: string, password: string = 'password123')
     // If user doesn't exist, check if it's super user or tester account
     if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
       // Check if it's a super user trying to login
-      if (email === superUserAccount.email && password === superUserAccount.password) {
-        return await createOrGetSuperUser();
+      if (email === superUserAccount.email) {
+        throw new Error('Super user exists in database but no Firebase Auth account. Please use "First time login" to set up your password.');
       }
       
       // Check if it's a tester account

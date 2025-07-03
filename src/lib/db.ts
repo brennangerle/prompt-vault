@@ -178,6 +178,16 @@ export async function createEmailVerificationEntry(email: string, userId: string
 }
 
 export async function verifyEmailExists(email: string): Promise<{ exists: boolean; userId?: string; email?: string; teamId?: string }> {
+  // Check if it's the super user account first
+  if (email === 'masterprompter@admin.com') {
+    return {
+      exists: true,
+      userId: 'super_user',
+      email: email,
+      teamId: undefined // Super user doesn't belong to a specific team
+    };
+  }
+  
   const emailKey = email.replace(/[.@]/g, '_');
   const verificationRef = ref(database, `email-verification/${emailKey}`);
   const snapshot = await get(verificationRef);

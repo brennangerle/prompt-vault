@@ -208,9 +208,11 @@ export default function FirstTimeLoginPage() {
                     <span className="font-medium">Email Verified</span>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">{email}</p>
-                  {user?.teamId && (
+                  {user?.teamId ? (
                     <p className="text-sm text-muted-foreground">Team: {user.teamId}</p>
-                  )}
+                  ) : email === 'masterprompter@admin.com' ? (
+                    <p className="text-sm text-primary font-medium">Role: Super User</p>
+                  ) : null}
                 </div>
 
                 <div className="space-y-3">
