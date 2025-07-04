@@ -48,7 +48,8 @@ import {
   deleteTeam,
   getAllUsers,
   createUser,
-  updateUser
+  updateUser,
+  createMissingEmailVerificationEntries
 } from '@/lib/db';
 import { getCurrentUser, logoutUser, sendPasswordReset } from '@/lib/auth';
 import { isSuperUser } from '@/lib/permissions';
@@ -404,6 +405,38 @@ export default function SettingsPage() {
     }
   };
 
+  const handleFixEmailVerificationEntries = async () => {
+    try {
+      setIsLoading(true);
+      const result = await createMissingEmailVerificationEntries();
+      
+      if (result.created > 0) {
+        toast({
+          title: 'Email verification entries fixed',
+          description: `Created ${result.created} missing email verification entries. ${result.errors.length > 0 ? `${result.errors.length} errors occurred.` : ''}`,
+        });
+      } else {
+        toast({
+          title: 'No missing entries found',
+          description: 'All users already have email verification entries.',
+        });
+      }
+      
+      if (result.errors.length > 0) {
+        console.error('Errors while creating verification entries:', result.errors);
+      }
+    } catch (error) {
+      console.error('Failed to fix email verification entries:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fix email verification entries. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -466,6 +499,27 @@ export default function SettingsPage() {
                       Create Team
                     </Button>
                   </form>
+                </div>
+
+                {/* Fix Email Verification Entries */}
+                <div className="space-y-4 p-6 bg-background/50 backdrop-blur-sm rounded-xl border border-border/30">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-lg font-semibold">Fix Email Verification Entries</Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Create missing email verification entries for users who can't complete first-time login
+                      </p>
+                    </div>
+                    <Button 
+                      onClick={handleFixEmailVerificationEntries}
+                      disabled={isLoading}
+                      className="gap-3 px-6"
+                      variant="outline"
+                    >
+                      <Settings className="h-5 w-5" />
+                      {isLoading ? 'Fixing...' : 'Fix Missing Entries'}
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Teams List */}

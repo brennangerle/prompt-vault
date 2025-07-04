@@ -21,12 +21,18 @@ import type { Prompt, User, TeamMember, Team } from './types';
 
 // User operations
 export async function createUser(userData: Omit<User, 'id'>): Promise<string> {
+  // Normalize email to lowercase for consistency
+  const normalizedUserData = {
+    ...userData,
+    email: userData.email.toLowerCase()
+  };
+  
   const usersRef = ref(database, 'users');
   const newUserRef = push(usersRef);
-  await set(newUserRef, userData);
+  await set(newUserRef, normalizedUserData);
   
   // Also create email verification entry for first-time login
-  await createEmailVerificationEntry(userData.email, newUserRef.key!, userData.teamId);
+  await createEmailVerificationEntry(normalizedUserData.email, newUserRef.key!, normalizedUserData.teamId);
   
   return newUserRef.key!;
 }
@@ -41,8 +47,10 @@ export async function getUser(userId: string): Promise<User | null> {
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
+  // Normalize email to lowercase for consistent lookup
+  const normalizedEmail = email.toLowerCase();
   const usersRef = ref(database, 'users');
-  const userQuery = query(usersRef, orderByChild('email'), equalTo(email));
+  const userQuery = query(usersRef, orderByChild('email'), equalTo(normalizedEmail));
   const snapshot = await get(userQuery);
   
   if (snapshot.exists()) {
@@ -167,28 +175,63 @@ export async function getAllUsers(): Promise<User[]> {
 // Special function for email verification during first-time login
 // This creates a copy of user email data in a publicly readable location
 export async function createEmailVerificationEntry(email: string, userId: string, teamId?: string): Promise<void> {
-  const emailKey = email.replace(/[.@]/g, '_'); // Firebase keys can't contain . or @
+  // Normalize email to lowercase for consistency
+  const normalizedEmail = email.toLowerCase();
+  const emailKey = normalizedEmail.replace(/[.@]/g, '_'); // Firebase keys can't contain . or @
   const verificationRef = ref(database, `email-verification/${emailKey}`);
   await set(verificationRef, {
-    email: email,
+    email: normalizedEmail,
     userId: userId,
     teamId: teamId,
     createdAt: new Date().toISOString()
   });
 }
 
+// Utility function to create missing email verification entries for all existing users
+export async function createMissingEmailVerificationEntries(): Promise<{ created: number; errors: string[] }> {
+  const users = await getAllUsers();
+  let created = 0;
+  const errors: string[] = [];
+  
+  for (const user of users) {
+    try {
+      // Check if verification entry already exists
+      const emailKey = user.email.replace(/[.@]/g, '_');
+      const verificationRef = ref(database, `email-verification/${emailKey}`);
+      const snapshot = await get(verificationRef);
+      
+      if (!snapshot.exists()) {
+        // Create missing verification entry
+        await createEmailVerificationEntry(user.email, user.id, user.teamId);
+        created++;
+        console.log(`Created verification entry for ${user.email}`);
+      }
+    } catch (error) {
+      const errorMsg = `Failed to create verification entry for ${user.email}: ${error}`;
+      console.error(errorMsg);
+      errors.push(errorMsg);
+    }
+  }
+  
+  return { created, errors };
+}
+
 export async function verifyEmailExists(email: string): Promise<{ exists: boolean; userId?: string; email?: string; teamId?: string }> {
+  // Normalize email to lowercase for consistent checking
+  const normalizedEmail = email.toLowerCase();
+  
   // Check if it's the super user account first
-  if (email === 'masterprompter@admin.com') {
+  if (normalizedEmail === 'masterprompter@admin.com') {
     return {
       exists: true,
       userId: 'super_user',
-      email: email,
+      email: normalizedEmail,
       teamId: undefined // Super user doesn't belong to a specific team
     };
   }
   
-  const emailKey = email.replace(/[.@]/g, '_');
+  // First, check email verification table
+  const emailKey = normalizedEmail.replace(/[.@]/g, '_');
   const verificationRef = ref(database, `email-verification/${emailKey}`);
   const snapshot = await get(verificationRef);
   
@@ -201,6 +244,34 @@ export async function verifyEmailExists(email: string): Promise<{ exists: boolea
       teamId: data.teamId
     };
   }
+  
+  // If not found in verification table, check if user exists in main users table
+  // This handles cases where users were added but verification entry failed
+  const user = await getUserByEmail(normalizedEmail);
+  if (user) {
+    console.log(`Found user ${normalizedEmail} in users table but missing verification entry. Creating it now...`);
+    
+    // Create the missing verification entry
+    try {
+      await createEmailVerificationEntry(user.email, user.id, user.teamId);
+      return {
+        exists: true,
+        userId: user.id,
+        email: user.email,
+        teamId: user.teamId
+      };
+    } catch (error) {
+      console.error('Failed to create verification entry for existing user:', error);
+      // Still return that the user exists, even if verification entry creation failed
+      return {
+        exists: true,
+        userId: user.id,
+        email: user.email,
+        teamId: user.teamId
+      };
+    }
+  }
+  
   return { exists: false };
 }
 
