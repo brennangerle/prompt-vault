@@ -9,7 +9,7 @@ import {
   sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { createUser, getUserByEmail, addTeamMember, verifyEmailExists, createEmailVerificationEntry } from './db';
+import { createUser, getUserByEmail, addTeamMember, verifyEmailExists, createEmailVerificationEntry, updateUser } from './db';
 import type { User, TeamMember } from './types';
 
 // Predefined tester accounts
@@ -22,7 +22,7 @@ const testerAccounts = {
 
 // Super user account
 const superUserAccount = {
-  email: 'master-keeper@prompt-vault.com',
+  email: 'masterprompter@admin.com',
   password: 'password',
   userRole: 'super_user' as const
 };
