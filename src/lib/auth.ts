@@ -22,7 +22,7 @@ const testerAccounts = {
 
 // Super user account
 const superUserAccount = {
-  email: 'masterprompter@admin.com',
+  email: 'master-keeper@prompt-vault.com',
   password: 'password',
   userRole: 'super_user' as const
 };
@@ -164,6 +164,8 @@ async function createOrGetSuperUser(): Promise<User> {
       console.log('Super user found:', user);
       // Ensure the role is set correctly
       if (user.role !== 'super_user') {
+        console.log('Correcting super user role in database...');
+        await updateUser(user.id, { ...user, role: 'super_user' });
         user.role = 'super_user';
       }
       

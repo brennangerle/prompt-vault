@@ -350,7 +350,7 @@ export async function getPromptsBySharing(
   return [];
 }
 
-// Real-time listeners
+""// Real-time listeners
 export function subscribeToPrompts(
   callback: (prompts: Prompt[]) => void,
   userId?: string,
@@ -358,15 +358,89 @@ export function subscribeToPrompts(
   userTeamId?: string
 ): () => void {
   let promptsRef;
-  
+
   if (userId) {
     // For private/personal view: only user's own prompts
     promptsRef = query(ref(database, 'prompts'), orderByChild('createdBy'), equalTo(userId));
-  } else {
-    // For team/community views: subscribe to all prompts and filter client-side
-    promptsRef = ref(database, 'prompts');
+    const unsubscribe = onValue(promptsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const promptsData = snapshot.val();
+        const prompts = Object.keys(promptsData).map(promptId => ({
+          id: promptId,
+          ...promptsData[promptId]
+        }));
+        callback(prompts);
+      } else {
+        callback([]);
+      }
+    });
+    return () => off(promptsRef, 'value', unsubscribe);
   }
-  
+
+  if (sharing === 'team' && userTeamId) {
+    const teamPromptsRef = query(ref(database, 'prompts'), orderByChild('teamId'), equalTo(userTeamId));
+    const globalPromptsRef = query(ref(database, 'prompts'), orderByChild('sharing'), equalTo('global'));
+
+    let teamPrompts: Prompt[] = [];
+    let globalPrompts: Prompt[] = [];
+
+    const handleUpdate = () => {
+      const allPrompts = [...teamPrompts, ...globalPrompts];
+      const uniquePrompts = Array.from(new Map(allPrompts.map(p => [p.id, p])).values());
+      callback(uniquePrompts);
+    };
+
+    const teamUnsubscribe = onValue(teamPromptsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const promptsData = snapshot.val();
+        teamPrompts = Object.keys(promptsData).map(promptId => ({
+          id: promptId,
+          ...promptsData[promptId]
+        })).filter(p => p.sharing === 'team');
+      } else {
+        teamPrompts = [];
+      }
+      handleUpdate();
+    });
+
+    const globalUnsubscribe = onValue(globalPromptsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const promptsData = snapshot.val();
+        globalPrompts = Object.keys(promptsData).map(promptId => ({
+          id: promptId,
+          ...promptsData[promptId]
+        }));
+      } else {
+        globalPrompts = [];
+      }
+      handleUpdate();
+    });
+
+    return () => {
+      off(teamPromptsRef, 'value', teamUnsubscribe);
+      off(globalPromptsRef, 'value', globalUnsubscribe);
+    };
+  }
+
+  if (sharing === 'global') {
+    promptsRef = query(ref(database, 'prompts'), orderByChild('sharing'), equalTo('global'));
+    const unsubscribe = onValue(promptsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const promptsData = snapshot.val();
+        const prompts = Object.keys(promptsData).map(promptId => ({
+          id: promptId,
+          ...promptsData[promptId]
+        }));
+        callback(prompts);
+      } else {
+        callback([]);
+      }
+    });
+    return () => off(promptsRef, 'value', unsubscribe);
+  }
+
+  // Fallback for any other case
+  promptsRef = ref(database, 'prompts');
   const unsubscribe = onValue(promptsRef, (snapshot) => {
     if (snapshot.exists()) {
       const promptsData = snapshot.val();
@@ -374,28 +448,13 @@ export function subscribeToPrompts(
         id: promptId,
         ...promptsData[promptId]
       }));
-      
-      // Apply cascading visibility filter
-      if (sharing === 'team') {
-        // Team view: show team prompts (only from same team) AND global prompts
-        prompts = prompts.filter(p => 
-          p.sharing === 'global' || 
-          (p.sharing === 'team' && p.teamId === userTeamId)
-        );
-      } else if (sharing === 'global') {
-        // Community view: only global prompts
-        prompts = prompts.filter(p => p.sharing === 'global');
-      }
-      // For userId queries (private view), no additional filtering needed
-      
       callback(prompts);
     } else {
       callback([]);
     }
   });
-  
   return () => off(promptsRef, 'value', unsubscribe);
-}
+}""
 
 export function subscribeToTeamMembers(
   teamId: string,
