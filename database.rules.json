@@ -7,8 +7,8 @@
       ".read": "auth != null",
       ".write": "auth != null",
       "$userId": {
-        ".read": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
-        ".write": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'super_user')"
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     },
     "email-verification": {

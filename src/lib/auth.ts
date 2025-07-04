@@ -22,7 +22,7 @@ const testerAccounts = {
 
 // Super user account
 const superUserAccount = {
-  email: 'masterprompter@admin.com',
+  email: 'masterkeeper@admin.com',
   password: 'password',
   userRole: 'super_user' as const
 };
