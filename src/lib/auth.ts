@@ -87,6 +87,8 @@ export async function loginUser(email: string, password: string = 'password123')
     
     return user;
   } catch (error: any) {
+    console.error('Login error details:', error);
+    
     // If user doesn't exist, check if it's super user or tester account
     if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
       // Check if it's a super user trying to login
@@ -101,11 +103,32 @@ export async function loginUser(email: string, password: string = 'password123')
       }
       
       // For regular users, check if they exist in database but not in Firebase Auth
-      const dbUser = await getUserByEmail(email);
-      if (dbUser) {
-        throw new Error('User exists in database but no Firebase Auth account. Please use "First time login" to set up your password.');
+      try {
+        const dbUser = await getUserByEmail(email);
+        if (dbUser) {
+          throw new Error('User exists in database but no Firebase Auth account. Please use "First time login" to set up your password.');
+        }
+      } catch (dbError: any) {
+        console.error('Database access error:', dbError);
+        if (dbError.code === 'PERMISSION_DENIED') {
+          throw new Error('Permission denied: Unable to verify user. Please check your authentication.');
+        }
       }
     }
+    
+    // Provide more specific error messages
+    if (error.code === 'PERMISSION_DENIED') {
+      throw new Error('Permission denied: Database access forbidden. Please contact administrator.');
+    } else if (error.code === 'auth/invalid-credential') {
+      throw new Error('Invalid email or password. Please check your credentials.');
+    } else if (error.code === 'auth/user-not-found') {
+      throw new Error('User not found. Please contact your team admin to be added.');
+    } else if (error.code === 'auth/wrong-password') {
+      throw new Error('Incorrect password. Please try again.');
+    } else if (error.code === 'auth/too-many-requests') {
+      throw new Error('Too many failed login attempts. Please try again later.');
+    }
+    
     throw error;
   }
 }
