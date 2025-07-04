@@ -177,7 +177,7 @@ export default function PromptKeeperPage() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                {isSuperUser(currentUser) && (
+                {!isLoading && isSuperUser(currentUser) && (
                   <Button
                     variant="ghost"
                     size="icon"
