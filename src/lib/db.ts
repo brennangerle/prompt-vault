@@ -21,11 +21,14 @@ import type { Prompt, User, TeamMember, Team } from './types';
 
 // User operations
 export async function createUser(userData: Omit<User, 'id'>): Promise<string> {
+  console.log('Creating user with data:', userData);
   const usersRef = ref(database, 'users');
   const newUserRef = push(usersRef);
   await set(newUserRef, userData);
+  console.log('User created with ID:', newUserRef.key);
   
   // Also create email verification entry for first-time login
+  console.log('Creating email verification entry for user:', userData.email);
   await createEmailVerificationEntry(userData.email, newUserRef.key!, userData.teamId);
   
   return newUserRef.key!;
@@ -55,7 +58,13 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 
 export async function updateUser(userId: string, updates: Partial<User>): Promise<void> {
   const userRef = ref(database, `users/${userId}`);
-  await set(userRef, updates);
+  
+  // Filter out undefined values to prevent Firebase errors
+  const filteredUpdates = Object.fromEntries(
+    Object.entries(updates).filter(([_, value]) => value !== undefined)
+  );
+  
+  await set(userRef, filteredUpdates);
 }
 
 // Team operations
@@ -169,21 +178,35 @@ export async function getAllUsers(): Promise<User[]> {
 export async function createEmailVerificationEntry(email: string, userId: string, teamId?: string): Promise<void> {
   const emailKey = email.replace(/[.@]/g, '_'); // Firebase keys can't contain . or @
   const verificationRef = ref(database, `email-verification/${emailKey}`);
-  await set(verificationRef, {
+  
+  // Create data object, only including teamId if it exists
+  const verificationData: any = {
     email: email,
     userId: userId,
-    teamId: teamId,
     createdAt: new Date().toISOString()
-  });
+  };
+  
+  // Only add teamId if it's defined
+  if (teamId) {
+    verificationData.teamId = teamId;
+  }
+  
+  console.log('Creating email verification entry:', { email, emailKey, userId, teamId, verificationData });
+  await set(verificationRef, verificationData);
+  console.log('Email verification entry created successfully');
 }
 
 export async function verifyEmailExists(email: string): Promise<{ exists: boolean; userId?: string; email?: string; teamId?: string }> {
   const emailKey = email.replace(/[.@]/g, '_');
   const verificationRef = ref(database, `email-verification/${emailKey}`);
+  console.log('Checking email verification for:', { email, emailKey, path: `email-verification/${emailKey}` });
+  
   const snapshot = await get(verificationRef);
+  console.log('Email verification snapshot exists:', snapshot.exists());
   
   if (snapshot.exists()) {
     const data = snapshot.val();
+    console.log('Email verification data found:', data);
     return { 
       exists: true, 
       userId: data.userId,
@@ -191,7 +214,38 @@ export async function verifyEmailExists(email: string): Promise<{ exists: boolea
       teamId: data.teamId
     };
   }
+  
+  console.log('Email verification entry not found');
   return { exists: false };
+}
+
+// Utility function to ensure all users have email verification entries
+export async function ensureEmailVerificationEntries(): Promise<void> {
+  const users = await getAllUsers();
+  console.log('Checking email verification entries for', users.length, 'users');
+  
+  for (const user of users) {
+    console.log('Checking user:', user.email);
+    const emailVerification = await verifyEmailExists(user.email);
+    if (!emailVerification.exists) {
+      console.log(`Creating missing email verification entry for user: ${user.email}`);
+      await createEmailVerificationEntry(user.email, user.id, user.teamId);
+    } else {
+      console.log(`Email verification entry already exists for user: ${user.email}`);
+    }
+  }
+}
+
+// Utility function to list all email verification entries
+export async function listEmailVerificationEntries(): Promise<any[]> {
+  const emailVerificationRef = ref(database, 'email-verification');
+  const snapshot = await get(emailVerificationRef);
+  
+  if (snapshot.exists()) {
+    const data = snapshot.val();
+    return Object.entries(data).map(([key, value]) => ({ key, ...(value as any) }));
+  }
+  return [];
 }
 
 export async function isUserAdmin(userId: string, teamId: string): Promise<boolean> {
@@ -208,7 +262,11 @@ export async function isUserAdmin(userId: string, teamId: string): Promise<boole
 export async function createPrompt(prompt: Omit<Prompt, 'id'>): Promise<string> {
   const promptsRef = ref(database, 'prompts');
   const newPromptRef = push(promptsRef);
-  await set(newPromptRef, prompt);
+  const promptWithTimestamp = {
+    ...prompt,
+    createdAt: new Date().toISOString()
+  };
+  await set(newPromptRef, promptWithTimestamp);
   return newPromptRef.key!;
 }
 

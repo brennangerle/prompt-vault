@@ -9,7 +9,7 @@ import {
   sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { createUser, getUserByEmail, addTeamMember } from './db';
+import { createUser, getUserByEmail, addTeamMember, verifyEmailExists, createEmailVerificationEntry } from './db';
 import type { User, TeamMember } from './types';
 
 // Predefined tester accounts
@@ -165,6 +165,13 @@ async function createOrGetSuperUser(): Promise<User> {
       // Ensure the role is set correctly
       if (user.role !== 'super_user') {
         user.role = 'super_user';
+      }
+      
+      // Check if email verification entry exists, create if missing
+      const emailVerification = await verifyEmailExists(superUserAccount.email);
+      if (!emailVerification.exists) {
+        console.log('Creating missing email verification entry for super user...');
+        await createEmailVerificationEntry(superUserAccount.email, user.id);
       }
     }
     

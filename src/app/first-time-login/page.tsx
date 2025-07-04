@@ -30,6 +30,8 @@ export default function FirstTimeLoginPage() {
     setIsLoading(true);
     
     try {
+      console.log('Checking email:', email);
+      
       // Basic email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
@@ -42,7 +44,10 @@ export default function FirstTimeLoginPage() {
       }
 
       // Check if user exists in database using email verification
+      console.log('Calling verifyEmailExists...');
       const emailVerification = await verifyEmailExists(email);
+      console.log('Email verification result:', emailVerification);
+      
       if (emailVerification.exists && emailVerification.userId) {
         // Create user object from verification data
         const foundUser: User = {
@@ -52,6 +57,7 @@ export default function FirstTimeLoginPage() {
           role: 'user'
         };
         
+        console.log('User found:', foundUser);
         setUser(foundUser);
         setStep('password');
         toast({
@@ -59,6 +65,7 @@ export default function FirstTimeLoginPage() {
           description: `Welcome ${foundUser.email}! Please set up your password.`,
         });
       } else {
+        console.log('User not found in email verification');
         toast({
           title: 'User Not Found',
           description: 'This email is not in our system. Please contact your team admin to be added first.',

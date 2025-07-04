@@ -13,7 +13,7 @@
     },
     "email-verification": {
       ".read": true,
-      ".write": false
+      ".write": "auth != null"
     },
     "teams": {
       ".read": "auth != null",

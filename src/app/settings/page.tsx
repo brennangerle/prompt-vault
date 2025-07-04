@@ -274,7 +274,6 @@ export default function SettingsPage() {
       
       if (!user) {
         // Create new user if doesn't exist
-        console.log('Creating new user:', userEmail);
         const userData: Omit<User, 'id'> = {
           email: userEmail,
           teamId: teamId,
@@ -284,7 +283,6 @@ export default function SettingsPage() {
         const userId = await createUser(userData);
         user = { id: userId, ...userData };
         isNewUser = true;
-        console.log('New user created with ID:', userId);
       } else {
         // Update existing user's teamId
         await updateUser(user.id, { ...user, teamId });

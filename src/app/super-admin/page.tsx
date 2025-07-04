@@ -44,6 +44,10 @@ import {
   Globe,
   Building,
   FileText,
+  ChevronDown,
+  ChevronRight,
+  Shield,
+  User as UserIcon,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { AuthGuard } from '@/components/auth-guard';
@@ -56,7 +60,11 @@ import {
   addTeamMember,
   removeTeamMember,
   createPrompt,
-  getPromptsBySharing
+  getPromptsBySharing,
+  createUser,
+  updateUser,
+  ensureEmailVerificationEntries,
+  listEmailVerificationEntries
 } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { canAccessSuperAdmin, isSuperUser } from '@/lib/permissions';
@@ -74,6 +82,9 @@ export default function SuperAdminPage() {
   const [newPromptTags, setNewPromptTags] = React.useState('');
   const [selectedTeamForPrompt, setSelectedTeamForPrompt] = React.useState<string>('');
   const [promptSharing, setPromptSharing] = React.useState<'team' | 'global'>('global');
+  const [expandedTeams, setExpandedTeams] = React.useState<Record<string, boolean>>({});
+  const [teamInputValues, setTeamInputValues] = React.useState<Record<string, string>>({});
+  const [isFixingEmailVerification, setIsFixingEmailVerification] = React.useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -456,6 +467,211 @@ Problem to solve:
     }
   };
 
+  const toggleTeamExpansion = (teamId: string) => {
+    setExpandedTeams(prev => ({
+      ...prev,
+      [teamId]: !prev[teamId]
+    }));
+  };
+
+  const updateTeamInputValue = (teamId: string, value: string) => {
+    setTeamInputValues(prev => ({
+      ...prev,
+      [teamId]: value
+    }));
+  };
+
+  const handleAddUserToTeam = async (userEmail: string, teamId: string) => {
+    try {
+      console.log('Adding user to team:', { userEmail, teamId });
+      
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(userEmail)) {
+        toast({
+          title: 'Invalid Email',
+          description: 'Please enter a valid email address.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Check if user exists
+      let user = users.find(u => u.email === userEmail);
+      let isNewUser = false;
+      console.log('Existing user found:', user ? 'Yes' : 'No');
+      
+      // Check if user is already in this team
+      const team = teams.find(t => t.id === teamId);
+      if (team?.members.some(m => m.email === userEmail)) {
+        toast({
+          title: 'User already in team',
+          description: `${userEmail} is already a member of this team.`,
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      if (!user) {
+        // Create new user if doesn't exist
+        const userData: Omit<User, 'id'> = {
+          email: userEmail,
+          teamId: teamId,
+          role: 'user'
+        };
+        
+        console.log('Creating new user:', userData);
+        const userId = await createUser(userData);
+        user = { id: userId, ...userData };
+        isNewUser = true;
+        console.log('New user created with ID:', userId);
+      } else {
+        // Update existing user's teamId
+        console.log('Updating existing user teamId');
+        await updateUser(user.id, { ...user, teamId });
+      }
+
+      const teamMember: TeamMember = {
+        id: user.id,
+        email: user.email,
+        role: 'member',
+        joinedAt: new Date().toISOString()
+      };
+
+      console.log('Adding team member:', teamMember);
+      await addTeamMember(teamId, teamMember);
+      
+      // Clear the specific team's input
+      setTeamInputValues(prev => ({ ...prev, [teamId]: '' }));
+      
+      // Refresh data
+      const [updatedTeams, updatedUsers] = await Promise.all([
+        getAllTeams(),
+        getAllUsers()
+      ]);
+      setTeams(updatedTeams);
+      setUsers(updatedUsers);
+      
+      toast({
+        title: 'User added to team',
+        description: `${userEmail} has been ${isNewUser ? 'created and ' : ''}added to the team.`,
+      });
+    } catch (error) {
+      console.error('Failed to add user to team:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to add user to team. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleToggleUserRole = async (userId: string, teamId: string, currentRole: 'admin' | 'member') => {
+    try {
+      const newRole = currentRole === 'admin' ? 'member' : 'admin';
+      
+      // Update in team members
+      const user = users.find(u => u.id === userId);
+      if (user) {
+        const teamMember: TeamMember = {
+          id: userId,
+          email: user.email,
+          role: newRole,
+          joinedAt: new Date().toISOString()
+        };
+        await addTeamMember(teamId, teamMember);
+      }
+      
+      // Refresh teams data
+      const updatedTeams = await getAllTeams();
+      setTeams(updatedTeams);
+      
+      toast({
+        title: 'Role updated',
+        description: `User role has been changed to ${newRole}.`,
+      });
+    } catch (error) {
+      console.error('Failed to update user role:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update user role. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleRemoveUserFromTeam = async (userId: string, teamId: string) => {
+    try {
+      await removeTeamMember(teamId, userId);
+      
+      // Update user to remove teamId property
+      const user = users.find(u => u.id === userId);
+      if (user) {
+        // Create a new user object without the teamId property
+        const { teamId: _, ...userWithoutTeamId } = user;
+        await updateUser(userId, userWithoutTeamId);
+      }
+      
+      // Refresh data
+      const [updatedTeams, updatedUsers] = await Promise.all([
+        getAllTeams(),
+        getAllUsers()
+      ]);
+      setTeams(updatedTeams);
+      setUsers(updatedUsers);
+      
+      toast({
+        title: 'User removed from team',
+        description: 'User has been removed from the team.',
+      });
+    } catch (error) {
+      console.error('Failed to remove user from team:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to remove user from team. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleFixEmailVerification = async () => {
+    setIsFixingEmailVerification(true);
+    try {
+      await ensureEmailVerificationEntries();
+      toast({
+        title: 'Email verification fixed',
+        description: 'All users now have email verification entries.',
+      });
+    } catch (error) {
+      console.error('Failed to fix email verification:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fix email verification entries. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsFixingEmailVerification(false);
+    }
+  };
+
+  const handleListEmailVerification = async () => {
+    try {
+      const entries = await listEmailVerificationEntries();
+      console.log('Email verification entries:', entries);
+      toast({
+        title: 'Email verification entries',
+        description: `Found ${entries.length} entries. Check console for details.`,
+      });
+    } catch (error) {
+      console.error('Failed to list email verification entries:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to list email verification entries.',
+        variant: 'destructive'
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -491,9 +707,30 @@ Problem to solve:
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">The Prompt Keeper</span>
             </div>
-            <div className="flex items-center gap-3 ml-auto bg-gradient-to-r from-primary/20 to-accent/20 backdrop-blur-sm rounded-full px-4 py-2 border border-primary/30">
-              <Crown className="h-6 w-6 text-primary" />
-              <span className="font-semibold text-lg">Super Admin</span>
+            <div className="flex items-center gap-3 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleListEmailVerification}
+                className="gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                List Email Entries
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleFixEmailVerification}
+                disabled={isFixingEmailVerification}
+                className="gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                {isFixingEmailVerification ? 'Fixing...' : 'Fix Email Verification'}
+              </Button>
+              <div className="flex items-center gap-3 bg-gradient-to-r from-primary/20 to-accent/20 backdrop-blur-sm rounded-full px-4 py-2 border border-primary/30">
+                <Crown className="h-6 w-6 text-primary" />
+                <span className="font-semibold text-lg">Super Admin</span>
+              </div>
             </div>
           </div>
         </header>
@@ -573,43 +810,124 @@ Problem to solve:
               {/* Teams List */}
               <div className="space-y-4">
                 {teams.map((team) => (
-                  <div key={team.id} className="flex items-center justify-between p-4 glass-light rounded-xl">
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <h3 className="font-semibold text-lg">{team.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {team.members.length} members • Created {new Date(team.createdAt || '').toLocaleDateString()}
-                        </p>
-                      </div>
-                      <Badge variant="secondary">{team.id}</Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-destructive/10 hover:text-destructive">
-                            <Trash2 className="h-5 w-5" />
+                  <Card key={team.id} className="border-0 glass-light">
+                    <CardContent className="p-0">
+                      <div className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleTeamExpansion(team.id)}
+                            className="p-1 h-8 w-8"
+                          >
+                            {expandedTeams[team.id] ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete team</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete team "{team.name}"? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDeleteTeam(team.id, team.name)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
+                          <div>
+                            <h3 className="font-semibold text-lg">{team.name}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {team.members.length} members • Created {new Date(team.createdAt || '').toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Badge variant="secondary">{team.id}</Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-destructive/10 hover:text-destructive">
+                                <Trash2 className="h-5 w-5" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete team</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete team "{team.name}"? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteTeam(team.id, team.name)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+
+                      {expandedTeams[team.id] && (
+                        <div className="space-y-3 border-t border-border/30 p-4">
+                          <div className="flex items-center justify-between">
+                            <Label className="font-medium">Team Members</Label>
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="User email"
+                                value={teamInputValues[team.id] || ''}
+                                onChange={(e) => updateTeamInputValue(team.id, e.target.value)}
+                                className="w-48 h-8"
+                              />
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  const email = teamInputValues[team.id]?.trim();
+                                  if (email) {
+                                    handleAddUserToTeam(email, team.id);
+                                  }
+                                }}
+                                className="h-8"
+                              >
+                                <UserPlus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          {team.members.length > 0 ? (
+                            <div className="grid gap-2">
+                              {team.members.map((member) => (
+                                <div key={member.id} className="flex items-center justify-between p-3 bg-background/30 rounded-lg">
+                                  <div className="flex items-center gap-3">
+                                    <UserIcon className="h-4 w-4 text-muted-foreground" />
+                                    <span className="font-medium">{member.email}</span>
+                                    <Badge variant={member.role === 'admin' ? 'default' : 'secondary'}>
+                                      {member.role}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleToggleUserRole(member.id, team.id, member.role)}
+                                      className="h-8"
+                                    >
+                                      <Shield className="h-4 w-4" />
+                                      {member.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleRemoveUserFromTeam(member.id, team.id)}
+                                      className="h-8 hover:bg-destructive/10 hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground text-center py-4">No members in this team</p>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             </CardContent>

@@ -7,6 +7,7 @@ export interface Prompt {
   sharing: 'private' | 'team' | 'global';
   createdBy?: string;
   teamId?: string;
+  createdAt?: string;
 }
 
 export interface User {

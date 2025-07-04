@@ -94,14 +94,14 @@ export default function PromptKeeperPage() {
     return unsubscribe;
   }, [selectedScope, currentUser]);
 
-  const addPrompt = async (prompt: Omit<Prompt, 'id' | 'sharing' | 'createdBy' | 'teamId'>) => {
+  const addPrompt = async (prompt: Omit<Prompt, 'id' | 'sharing' | 'createdBy' | 'teamId' | 'createdAt'>) => {
     if (!currentUser) return;
     
     const newPrompt: Omit<Prompt, 'id'> = { 
       ...prompt, 
       sharing: 'private',
       createdBy: currentUser.id,
-      teamId: currentUser.teamId
+      ...(currentUser.teamId && { teamId: currentUser.teamId })
     };
     
     try {
@@ -134,7 +134,11 @@ export default function PromptKeeperPage() {
 
   const scopeFilteredPrompts = React.useMemo(() => {
     // Prompts are already filtered by the database queries in useEffect
-    return prompts;
+    // Sort by createdAt in descending order (newest first)
+    return [...prompts].sort((a, b) => {
+      if (!a.createdAt || !b.createdAt) return 0;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
   }, [prompts]);
   
   const allTags = React.useMemo(() => {
