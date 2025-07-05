@@ -1,14 +1,14 @@
 {
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null",
+    ".read": false,
+    ".write": false,
     "users": {
       ".indexOn": "email",
-      ".read": "auth != null",
-      ".write": "auth != null",
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
       "$userId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
+        ".write": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'super_user')"
       }
     },
     "email-verification": {

@@ -260,6 +260,7 @@ export default function PromptKeeperPage() {
                     onUpdatePrompt={updatePromptHandler}
                     onDeletePrompt={deletePromptHandler}
                     isEditable={selectedScope === 'private'}
+                    currentUserTeamId={currentUser?.teamId}
                   />
                 ))}
               </div>
