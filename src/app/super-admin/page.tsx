@@ -85,6 +85,10 @@ export default function SuperAdminPage() {
   const [expandedTeams, setExpandedTeams] = React.useState<Record<string, boolean>>({});
   const [teamInputValues, setTeamInputValues] = React.useState<Record<string, string>>({});
   const [isFixingEmailVerification, setIsFixingEmailVerification] = React.useState(false);
+  const [bulkPromptText, setBulkPromptText] = React.useState('');
+  const [bulkPromptSharing, setBulkPromptSharing] = React.useState<'team' | 'global'>('global');
+  const [selectedTeamForBulkPrompts, setSelectedTeamForBulkPrompts] = React.useState<string>('');
+  const [isProcessingBulkPrompts, setIsProcessingBulkPrompts] = React.useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -211,6 +215,141 @@ export default function SuperAdminPage() {
         description: 'Failed to create prompt. Please try again.',
         variant: 'destructive'
       });
+    }
+  };
+
+  const parseBulkPrompts = (text: string): Array<{ title: string; content: string; tags: string[] }> => {
+    const prompts: Array<{ title: string; content: string; tags: string[] }> = [];
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
+    let currentPrompt: { title: string; content: string; tags: string[] } | null = null;
+    let isInContent = false;
+    
+    for (const line of lines) {
+      // Check if this line is a title (starts with "Title:" or just a standalone title)
+      if (line.toLowerCase().startsWith('title:')) {
+        if (currentPrompt) {
+          prompts.push(currentPrompt);
+        }
+        currentPrompt = {
+          title: line.substring(6).trim(),
+          content: '',
+          tags: []
+        };
+        isInContent = false;
+      } else if (line.toLowerCase().startsWith('content:')) {
+        if (currentPrompt) {
+          currentPrompt.content = line.substring(8).trim();
+          isInContent = true;
+        }
+      } else if (line.toLowerCase().startsWith('tags:')) {
+        if (currentPrompt) {
+          currentPrompt.tags = line.substring(5).trim().split(',').map(tag => tag.trim()).filter(Boolean);
+        }
+      } else if (line.startsWith('---') || line.startsWith('===')) {
+        // Separator line - finish current prompt and start new one
+        if (currentPrompt) {
+          prompts.push(currentPrompt);
+          currentPrompt = null;
+          isInContent = false;
+        }
+      } else {
+        // This is either a title line or content continuation
+        if (!currentPrompt) {
+          // Start new prompt with this line as title
+          currentPrompt = {
+            title: line,
+            content: '',
+            tags: []
+          };
+          isInContent = false;
+        } else if (isInContent) {
+          // Continue content
+          currentPrompt.content += (currentPrompt.content ? '\n' : '') + line;
+        } else {
+          // If we have a title but no content marker, treat next non-empty line as content
+          if (currentPrompt.title && !currentPrompt.content) {
+            currentPrompt.content = line;
+            isInContent = true;
+          }
+        }
+      }
+    }
+    
+    // Add the last prompt if exists
+    if (currentPrompt) {
+      prompts.push(currentPrompt);
+    }
+    
+    return prompts.filter(p => p.title && p.content);
+  };
+
+  const handleBulkCreatePrompts = async () => {
+    if (!bulkPromptText.trim() || !currentUser) return;
+    
+    setIsProcessingBulkPrompts(true);
+    
+    try {
+      const parsedPrompts = parseBulkPrompts(bulkPromptText);
+      
+      if (parsedPrompts.length === 0) {
+        toast({
+          title: 'No prompts found',
+          description: 'Please check your format. Each prompt should have a title and content.',
+          variant: 'destructive'
+        });
+        setIsProcessingBulkPrompts(false);
+        return;
+      }
+      
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const promptData of parsedPrompts) {
+        try {
+          const prompt: Omit<Prompt, 'id'> = {
+            title: promptData.title,
+            content: promptData.content,
+            tags: promptData.tags,
+            sharing: bulkPromptSharing,
+            createdBy: currentUser.id,
+            ...(bulkPromptSharing === 'team' && selectedTeamForBulkPrompts && { teamId: selectedTeamForBulkPrompts })
+          };
+          
+          await createPrompt(prompt);
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to create prompt "${promptData.title}":`, error);
+          errorCount++;
+        }
+      }
+      
+      // Refresh community prompts if global
+      if (bulkPromptSharing === 'global') {
+        const updatedCommunityPrompts = await getPromptsBySharing('global');
+        setCommunityPrompts(updatedCommunityPrompts);
+      }
+      
+      // Reset form
+      setBulkPromptText('');
+      setSelectedTeamForBulkPrompts('');
+      setBulkPromptSharing('global');
+      
+      toast({
+        title: 'Bulk prompts processed',
+        description: `Successfully created ${successCount} prompts${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
+        variant: errorCount > 0 ? 'destructive' : 'default'
+      });
+      
+    } catch (error) {
+      console.error('Failed to process bulk prompts:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to process bulk prompts. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsProcessingBulkPrompts(false);
     }
   };
 
@@ -1020,6 +1159,118 @@ Problem to solve:
                   </Button>
                 </div>
               </form>
+
+              {/* Bulk Prompt Creation */}
+              <div className="space-y-4 border-t border-border/30 pt-6">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold">Bulk Prompt Creation</h3>
+                  <Badge variant="outline">Beta</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Copy and paste multiple prompts at once. Supports various formats - see examples below.
+                </p>
+                
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="bulk-prompts">Bulk Prompts</Label>
+                    <Textarea
+                      id="bulk-prompts"
+                      placeholder="Paste your prompts here... See format examples below."
+                      value={bulkPromptText}
+                      onChange={(e) => setBulkPromptText(e.target.value)}
+                      className="min-h-[200px] font-mono text-sm"
+                    />
+                  </div>
+                  
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <Label htmlFor="bulk-sharing">Destination</Label>
+                      <Select value={bulkPromptSharing} onValueChange={(value: 'team' | 'global') => setBulkPromptSharing(value)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="global">Community (Global)</SelectItem>
+                          <SelectItem value="team">Team Specific</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {bulkPromptSharing === 'team' && (
+                      <div className="flex-1">
+                        <Label htmlFor="bulk-team-select">Target Team</Label>
+                        <Select value={selectedTeamForBulkPrompts} onValueChange={setSelectedTeamForBulkPrompts}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select team" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {teams.map((team) => (
+                              <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Button 
+                    onClick={handleBulkCreatePrompts}
+                    disabled={isProcessingBulkPrompts || !bulkPromptText.trim() || (bulkPromptSharing === 'team' && !selectedTeamForBulkPrompts)}
+                    className="gap-2"
+                  >
+                    {isProcessingBulkPrompts ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="h-4 w-4" />
+                        Create Bulk Prompts
+                      </>
+                    )}
+                  </Button>
+                </div>
+                
+                {/* Format Examples */}
+                <div className="mt-4 p-4 bg-background/50 rounded-lg">
+                  <h4 className="font-semibold mb-2">Supported Formats:</h4>
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <p className="font-medium">Format 1: Structured with labels</p>
+                      <pre className="bg-background/80 p-2 rounded mt-1 text-xs">
+{`Title: Email Writer
+Content: You are a professional email writer. Help me write emails that are clear, concise, and professional.
+Tags: email, writing, professional
+
+Title: Code Reviewer
+Content: Review the following code and provide feedback on best practices, potential bugs, and improvements.
+Tags: code, review, development`}
+                      </pre>
+                    </div>
+                    <div>
+                      <p className="font-medium">Format 2: Simple with separators</p>
+                      <pre className="bg-background/80 p-2 rounded mt-1 text-xs">
+{`Email Writer
+You are a professional email writer. Help me write emails that are clear, concise, and professional.
+---
+Code Reviewer
+Review the following code and provide feedback on best practices, potential bugs, and improvements.
+---`}
+                      </pre>
+                    </div>
+                    <div>
+                      <p className="font-medium">Format 3: Line-by-line</p>
+                      <pre className="bg-background/80 p-2 rounded mt-1 text-xs">
+{`Email Writer
+You are a professional email writer. Help me write emails that are clear, concise, and professional.
+
+Code Reviewer
+Review the following code and provide feedback on best practices, potential bugs, and improvements.`}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Community Prompts */}
               <div className="space-y-4">
