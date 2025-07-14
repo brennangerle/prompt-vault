@@ -7,11 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BookMarked, CheckCircle, XCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { verifyEmailExists } from '@/lib/db';
+import { verifyEmailExists, getTeam } from '@/lib/db';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import type { User } from '@/lib/types';
+import type { User, Team } from '@/lib/types';
 
 export default function FirstTimeLoginPage() {
   const [step, setStep] = React.useState<'email' | 'password'>('email');
@@ -20,6 +20,7 @@ export default function FirstTimeLoginPage() {
   const [confirmPassword, setConfirmPassword] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
   const [user, setUser] = React.useState<User | null>(null);
+  const [team, setTeam] = React.useState<Team | null>(null);
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const router = useRouter();
@@ -59,6 +60,17 @@ export default function FirstTimeLoginPage() {
         
         console.log('User found:', foundUser);
         setUser(foundUser);
+        
+        // Load team data if user has a teamId
+        if (foundUser.teamId) {
+          try {
+            const teamData = await getTeam(foundUser.teamId);
+            setTeam(teamData);
+          } catch (error) {
+            console.error('Error loading team data:', error);
+          }
+        }
+        
         setStep('password');
         toast({
           title: 'User Found!',
@@ -216,7 +228,7 @@ export default function FirstTimeLoginPage() {
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">{email}</p>
                   {user?.teamId && (
-                    <p className="text-sm text-muted-foreground">Team: {user.teamId}</p>
+                    <p className="text-sm text-muted-foreground">Team: {team?.name || user.teamId}</p>
                   )}
                 </div>
 
