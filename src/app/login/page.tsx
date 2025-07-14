@@ -10,19 +10,7 @@ import { useRouter } from 'next/navigation';
 import { loginUser } from '@/lib/auth';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-interface TesterAccount {
-  id: string;
-  email: string;
-  name: string;
-  teamId: string;
-}
 
-const testerAccounts: TesterAccount[] = [
-  { id: '1', email: 'tester1@t1.com', name: 'Tester 1 (T1)', teamId: 't1' },
-  { id: '2', email: 'tester2@t1.com', name: 'Tester 2 (T1)', teamId: 't1' },
-  { id: '3', email: 'tester3@t2.com', name: 'Tester 3 (T2)', teamId: 't2' },
-  { id: '4', email: 'tester4@t2.com', name: 'Tester 4 (T2)', teamId: 't2' },
-];
 
 export default function LoginPage() {
   const [email, setEmail] = React.useState('');
@@ -47,19 +35,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleTesterLogin = async (tester: TesterAccount) => {
-    setIsLoading(true);
-    
-    try {
-      await loginUser(tester.email);
-      router.push('/');
-    } catch (error: any) {
-      console.error('Tester login failed:', error.message);
-      // Show error message to user
-    } finally {
-      setIsLoading(false);
-    }
-  };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-6">
@@ -121,33 +97,7 @@ export default function LoginPage() {
             </Button>
           </form>
           
-          {/* Tester Accounts */}
-          <div className="mt-8 space-y-5">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border/30" />
-              </div>
-              <div className="relative flex justify-center text-sm uppercase font-medium">
-                <span className="bg-card px-4 py-1 text-muted-foreground backdrop-blur-sm rounded-full border border-border/30">
-                  Quick Test Login
-                </span>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {testerAccounts.map((tester) => (
-                <Button
-                  key={tester.id}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleTesterLogin(tester)}
-                  disabled={isLoading}
-                  className="text-sm py-3 bg-background/50 backdrop-blur-sm border-border/50 hover:bg-accent/10 hover:border-accent/30 hover:text-accent transition-all duration-300"
-                >
-                  {tester.name}
-                </Button>
-              ))}
-            </div>
-          </div>
+
           
           <div className="mt-6 text-center text-sm text-muted-foreground space-y-2">
             <div>
