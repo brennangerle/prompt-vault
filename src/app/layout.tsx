@@ -3,6 +3,7 @@ import './globals.css';
 import { cn } from "@/lib/utils"
 import { Toaster } from "@/components/ui/toaster"
 import { Analytics } from "@vercel/analytics/next"
+import { GoogleAnalytics } from "@/components/GoogleAnalytics"
 
 export const metadata: Metadata = {
   title: 'Prompt Keeper: Your Prompt Repository & Sharing App',
@@ -32,6 +33,7 @@ export default function RootLayout({
         {children}
         <Toaster />
         <Analytics />
+        <GoogleAnalytics />
       </body>
     </html>
   );
