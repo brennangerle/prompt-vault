@@ -1,25 +1,23 @@
 {
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null",
     "users": {
       ".indexOn": "email",
       ".read": "auth != null",
       ".write": "auth != null",
       "$userId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read": "auth != null && ($userId == auth.uid || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
+        ".write": "auth != null && ($userId == auth.uid || root.child('users').child(auth.uid).child('role').val() == 'super_user')"
       }
     },
     "email-verification": {
-      ".read": true,
+      ".read": "auth != null",
       ".write": "auth != null"
     },
     "teams": {
-      ".read": "auth != null",
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
       "$teamId": {
-        ".read": "auth != null",
+        ".read": "auth != null && (root.child('teams').child($teamId).child('members').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
         ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
         "members": {
           ".read": "auth != null && (root.child('teams').child($teamId).child('members').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
