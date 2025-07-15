@@ -33,7 +33,7 @@
       ".write": "auth != null",
       "$promptId": {
         ".read": "(auth != null && data.child('sharing').val() == 'global') || (auth != null && data.child('createdBy').val() == auth.uid) || (auth != null && data.child('sharing').val() == 'team' && data.child('teamId').exists() && root.child('users').child(auth.uid).child('teamId').val() == data.child('teamId').val()) || (auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user')",
-        ".write": "auth != null && ((!data.exists() || data.child('createdBy').val() == auth.uid) || root.child('users').child(auth.uid).child('role').val() == 'super_user')"
+        ".write": "auth != null && ((!data.exists()) || root.child('users').child(auth.uid).child('role').val() == 'super_user')"
       }
     }
   }

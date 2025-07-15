@@ -39,7 +39,7 @@ import {
   getPromptsBySharing 
 } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
-import { isSuperUser } from '@/lib/permissions';
+import { isSuperUser, canEditPrompt, canDeletePrompt } from '@/lib/permissions';
 import type { User } from '@/lib/types';
 
 type SharingScope = 'private' | 'team' | 'community';
@@ -116,6 +116,13 @@ export default function PromptKeeperPage() {
       await updatePrompt(updatedPrompt.id, updatedPrompt);
     } catch (error) {
       console.error('Failed to update prompt:', error);
+      // Show error message to user
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update prompt';
+      if (errorMessage.includes('Unauthorized')) {
+        alert('Only the prompt keeper can edit prompts.');
+      } else {
+        alert('Failed to update prompt. Please try again.');
+      }
     }
   };
 
@@ -124,6 +131,13 @@ export default function PromptKeeperPage() {
       await deletePrompt(id);
     } catch (error) {
       console.error('Failed to delete prompt:', error);
+      // Show error message to user
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete prompt';
+      if (errorMessage.includes('Unauthorized')) {
+        alert('Only the prompt keeper can delete prompts.');
+      } else {
+        alert('Failed to delete prompt. Please try again.');
+      }
     }
   };
   
@@ -259,7 +273,7 @@ export default function PromptKeeperPage() {
                     prompt={prompt}
                     onUpdatePrompt={updatePromptHandler}
                     onDeletePrompt={deletePromptHandler}
-                    isEditable={selectedScope === 'private'}
+                    isEditable={canEditPrompt(currentUser)}
                   />
                 ))}
               </div>

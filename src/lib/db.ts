@@ -12,6 +12,8 @@ import {
 } from 'firebase/database';
 import { database } from './firebase';
 import type { Prompt, User, TeamMember, Team } from './types';
+import { canEditPrompt, canDeletePrompt } from './permissions';
+import { getCurrentUser } from './auth';
 
 // Database structure:
 // /users/{userId} -> User
@@ -281,6 +283,12 @@ export async function getPrompt(promptId: string): Promise<Prompt | null> {
 }
 
 export async function updatePrompt(promptId: string, updates: Partial<Prompt>): Promise<void> {
+  // Check if current user has permission to edit prompts
+  const currentUser = await getCurrentUser();
+  if (!canEditPrompt(currentUser)) {
+    throw new Error('Unauthorized: Only the prompt keeper can edit prompts');
+  }
+
   const promptRef = ref(database, `prompts/${promptId}`);
   const snapshot = await get(promptRef);
   
@@ -291,6 +299,12 @@ export async function updatePrompt(promptId: string, updates: Partial<Prompt>): 
 }
 
 export async function deletePrompt(promptId: string): Promise<void> {
+  // Check if current user has permission to delete prompts
+  const currentUser = await getCurrentUser();
+  if (!canDeletePrompt(currentUser)) {
+    throw new Error('Unauthorized: Only the prompt keeper can delete prompts');
+  }
+
   const promptRef = ref(database, `prompts/${promptId}`);
   await remove(promptRef);
 }

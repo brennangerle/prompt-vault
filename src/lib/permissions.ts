@@ -35,3 +35,16 @@ export function canManageTeamMembers(user: User | null, targetTeamId?: string): 
   if (!user?.teamId) return false;
   return !targetTeamId || user.teamId === targetTeamId;
 }
+
+// New permission functions for prompt editing and deletion
+export function canEditPrompt(user: User | null): boolean {
+  return isSuperUser(user);
+}
+
+export function canDeletePrompt(user: User | null): boolean {
+  return isSuperUser(user);
+}
+
+export function canManagePrompts(user: User | null): boolean {
+  return isSuperUser(user);
+}

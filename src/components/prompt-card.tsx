@@ -24,6 +24,8 @@ import { OptimizePromptDialog } from './optimize-prompt-dialog';
 import { EditPromptDialog } from './edit-prompt-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { canEditPrompt, canDeletePrompt } from '@/lib/permissions';
+import { getCurrentUser } from '@/lib/auth';
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -34,7 +36,17 @@ interface PromptCardProps {
 
 export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable }: PromptCardProps) {
   const [isCopied, setIsCopied] = React.useState(false);
+  const [currentUser, setCurrentUser] = React.useState<any>(null);
   const { toast } = useToast();
+
+  // Get current user for permission checks
+  React.useEffect(() => {
+    const fetchUser = async () => {
+      const user = await getCurrentUser();
+      setCurrentUser(user);
+    };
+    fetchUser();
+  }, []);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -78,6 +90,10 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
     });
   };
 
+  // Check if current user can edit/delete prompts
+  const canEdit = canEditPrompt(currentUser);
+  const canDelete = canDeletePrompt(currentUser);
+
   return (
     <Card className="w-full group transition-all-smooth hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 border-0 glass-light">
       <div className="flex flex-col sm:flex-row sm:items-start p-6 gap-4">
@@ -104,7 +120,7 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
-          {isEditable && prompt.sharing !== 'global' && (
+          {canEdit && prompt.sharing !== 'global' && (
             <div className="flex items-center space-x-3 bg-background/50 backdrop-blur-sm rounded-full px-3 py-2 border border-border/30">
               <Switch
                 id={`sharing-switch-${prompt.id}`}
@@ -141,7 +157,7 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
             </Tooltip>
           </TooltipProvider>
 
-          {isEditable && (
+          {canEdit && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/10 transition-all duration-300 border border-border/30 shrink-0">
@@ -164,7 +180,7 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
                     <span>Optimize</span>
                   </DropdownMenuItem>
                 </OptimizePromptDialog>
-                {isEditable && (
+                {canEdit && (
                   <>
                     <DropdownMenuItem onClick={handleGlobalShare} disabled={prompt.sharing === 'global'}>
                       <Globe className="mr-2 h-4 w-4" />
@@ -173,13 +189,15 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
                     <DropdownMenuSeparator />
                   </>
                 )}
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => onDeletePrompt(prompt.id)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  <span>Delete</span>
-                </DropdownMenuItem>
+                {canDelete && (
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => onDeletePrompt(prompt.id)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    <span>Delete</span>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
