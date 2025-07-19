@@ -1,5 +1,7 @@
 {
   "rules": {
+    ".read": false,
+    ".write": false,
     "users": {
       ".indexOn": "email",
       "$userId": {
@@ -11,8 +13,8 @@
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
       "$emailKey": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'"
       }
     },
     "teams": {
