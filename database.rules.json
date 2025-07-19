@@ -1,7 +1,7 @@
 {
   "rules": {
-    ".read": false,
-    ".write": false,
+    ".read": "auth != null",
+    ".write": "auth != null",
     "users": {
       ".indexOn": "email",
       "$userId": {
