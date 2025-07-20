@@ -38,7 +38,7 @@ import {
   deletePrompt,
   getPromptsBySharing 
 } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
+import { useUser } from '@/lib/user-context';
 import { isSuperUser, canEditPrompt, canDeletePrompt } from '@/lib/permissions';
 import type { User } from '@/lib/types';
 
@@ -54,19 +54,8 @@ export default function PromptKeeperPage() {
   const [prompts, setPrompts] = React.useState<Prompt[]>([]);
   const [selectedTag, setSelectedTag] = React.useState<string | 'All'>('All');
   const [selectedScope, setSelectedScope] = React.useState<SharingScope>('private');
-  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const { currentUser, isLoading } = useUser();
   const router = useRouter();
-
-  // Get current user on component mount
-  React.useEffect(() => {
-    const initUser = async () => {
-      const user = await getCurrentUser();
-      setCurrentUser(user);
-      setIsLoading(false);
-    };
-    initUser();
-  }, []);
 
   // Subscribe to prompts based on selected scope
   React.useEffect(() => {

@@ -2,37 +2,23 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { subscribeToAuthState, getCurrentUser } from '@/lib/auth';
-import type { User } from '@/lib/types';
+import { useUser } from '@/lib/user-context';
 
 interface AuthGuardProps {
   children: React.ReactNode;
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const [isAuthenticated, setIsAuthenticated] = React.useState<boolean | null>(null);
-  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const { isAuthenticated, isLoading } = useUser();
   const router = useRouter();
 
   React.useEffect(() => {
-    const unsubscribe = subscribeToAuthState(async (firebaseUser) => {
-      if (firebaseUser) {
-        // User is authenticated, get their data
-        const userData = await getCurrentUser();
-        setCurrentUser(userData);
-        setIsAuthenticated(true);
-      } else {
-        // User is not authenticated
-        setCurrentUser(null);
-        setIsAuthenticated(false);
-        router.push('/login');
-      }
-    });
+    if (!isLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isLoading, isAuthenticated, router]);
 
-    return unsubscribe;
-  }, [router]);
-
-  if (isAuthenticated === null) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">Loading...</div>

@@ -8,7 +8,9 @@ import {
   off,
   query,
   orderByChild,
-  equalTo
+  equalTo,
+  Query,
+  DatabaseReference
 } from 'firebase/database';
 import { database } from './firebase';
 import type { Prompt, User, TeamMember, Team } from './types';
@@ -371,7 +373,7 @@ export function subscribeToPrompts(
   sharing?: 'private' | 'team' | 'global',
   userTeamId?: string
 ): () => void {
-  let promptsRef;
+  let promptsRef: Query | DatabaseReference;
 
   if (userId) {
     // For private/personal view: only user's own prompts

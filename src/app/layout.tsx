@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 import { Toaster } from "@/components/ui/toaster"
 import { Analytics } from "@vercel/analytics/next"
 import { GoogleAnalytics } from "@/components/GoogleAnalytics"
+import { UserProvider } from "@/lib/user-context"
 
 export const metadata: Metadata = {
   title: 'Prompt Keeper: Your Prompt Repository & Sharing App',
@@ -30,7 +31,9 @@ export default function RootLayout({
         <link rel="manifest" href="/site.webmanifest" />
       </head>
       <body className={cn("font-body antialiased")}>
-        {children}
+        <UserProvider>
+          {children}
+        </UserProvider>
         <Toaster />
         <Analytics />
         <GoogleAnalytics />

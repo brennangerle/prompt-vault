@@ -25,7 +25,7 @@ import { EditPromptDialog } from './edit-prompt-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { canEditPrompt, canDeletePrompt } from '@/lib/permissions';
-import { getCurrentUser } from '@/lib/auth';
+import { useUser } from '@/lib/user-context';
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -36,17 +36,8 @@ interface PromptCardProps {
 
 export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable }: PromptCardProps) {
   const [isCopied, setIsCopied] = React.useState(false);
-  const [currentUser, setCurrentUser] = React.useState<any>(null);
+  const { currentUser } = useUser();
   const { toast } = useToast();
-
-  // Get current user for permission checks
-  React.useEffect(() => {
-    const fetchUser = async () => {
-      const user = await getCurrentUser();
-      setCurrentUser(user);
-    };
-    fetchUser();
-  }, []);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();

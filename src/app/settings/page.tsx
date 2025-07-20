@@ -50,16 +50,16 @@ import {
   createUser,
   updateUser
 } from '@/lib/db';
-import { getCurrentUser, logoutUser, sendPasswordReset } from '@/lib/auth';
+import { logoutUser, sendPasswordReset } from '@/lib/auth';
+import { useUser } from '@/lib/user-context';
 import { isSuperUser } from '@/lib/permissions';
 import type { TeamMember, User, Team } from '@/lib/types';
 
 export default function SettingsPage() {
-  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const { currentUser, isLoading } = useUser();
   const [newMemberEmail, setNewMemberEmail] = React.useState('');
   const [teamMembers, setTeamMembers] = React.useState<TeamMember[]>([]);
   const [isUserAdminState, setIsUserAdminState] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(true);
   
   // Super user states
   const [teams, setTeams] = React.useState<Team[]>([]);
@@ -76,19 +76,16 @@ export default function SettingsPage() {
   React.useEffect(() => {
     const initUser = async () => {
       try {
-        const user = await getCurrentUser();
-        if (!user) return;
-        
-        setCurrentUser(user);
+        if (!currentUser || isLoading) return;
         
         // Check if user is admin
-        if (user.teamId) {
-          const isAdmin = await isUserAdminFromDB(user.id, user.teamId);
+        if (currentUser.teamId) {
+          const isAdmin = await isUserAdminFromDB(currentUser.id, currentUser.teamId);
           setIsUserAdminState(isAdmin);
         }
         
         // Load super user data if applicable
-        if (isSuperUser(user)) {
+        if (isSuperUser(currentUser)) {
           const [teamsData, usersData] = await Promise.all([
             getAllTeams(),
             getAllUsers()
@@ -96,16 +93,13 @@ export default function SettingsPage() {
           setTeams(teamsData);
           setAllUsers(usersData);
         }
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Failed to load user data:', error);
-        setIsLoading(false);
-      }
-    };
-    
-    initUser();
-  }, []);
+              } catch (error) {
+          console.error('Failed to load user data:', error);
+        }
+      };
+      
+      initUser();
+    }, [currentUser, isLoading]);
 
   // Subscribe to team members
   React.useEffect(() => {
