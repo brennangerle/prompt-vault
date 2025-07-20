@@ -66,16 +66,15 @@ import {
   ensureEmailVerificationEntries,
   listEmailVerificationEntries
 } from '@/lib/db';
-import { getCurrentUser } from '@/lib/auth';
+import { useUser } from '@/lib/user-context';
 import { canAccessSuperAdmin, isSuperUser } from '@/lib/permissions';
 import type { Team, User, TeamMember, Prompt } from '@/lib/types';
 
 export default function SuperAdminPage() {
-  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const { currentUser, isLoading } = useUser();
   const [teams, setTeams] = React.useState<Team[]>([]);
   const [users, setUsers] = React.useState<User[]>([]);
   const [communityPrompts, setCommunityPrompts] = React.useState<Prompt[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
   const [newTeamName, setNewTeamName] = React.useState('');
   const [newPromptTitle, setNewPromptTitle] = React.useState('');
   const [newPromptContent, setNewPromptContent] = React.useState('');
@@ -95,13 +94,12 @@ export default function SuperAdminPage() {
   React.useEffect(() => {
     const initData = async () => {
       try {
-        const user = await getCurrentUser();
-        if (!user || !canAccessSuperAdmin(user)) {
+        if (!currentUser || isLoading) return;
+        
+        if (!canAccessSuperAdmin(currentUser)) {
           router.push('/');
           return;
         }
-        
-        setCurrentUser(user);
         
         // Load all data
         const [teamsData, usersData, communityData] = await Promise.all([
@@ -113,15 +111,13 @@ export default function SuperAdminPage() {
         setTeams(teamsData);
         setUsers(usersData);
         setCommunityPrompts(communityData);
-        setIsLoading(false);
       } catch (error) {
         console.error('Failed to load super admin data:', error);
-        setIsLoading(false);
       }
     };
     
     initData();
-  }, [router]);
+  }, [currentUser, isLoading, router]);
 
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -570,7 +566,6 @@ Problem to solve:
     if (!currentUser) return;
 
     try {
-      setIsLoading(true);
       let successCount = 0;
 
       for (const demoPrompt of demoPrompts) {
@@ -601,8 +596,6 @@ Problem to solve:
         description: 'Failed to create demo prompts. Please try again.',
         variant: 'destructive'
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
