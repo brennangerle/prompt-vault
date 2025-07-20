@@ -103,14 +103,7 @@ export function OptimizePromptDialog({
                 {result.optimizedPrompt}
               </p>
             </div>
-            <div>
-              <h3 className="font-semibold text-foreground">Suggestions</h3>
-              <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-muted-foreground">
-                {result.suggestions.map((suggestion, index) => (
-                  <li key={index}>{suggestion}</li>
-                ))}
-              </ul>
-            </div>
+            
           </div>
         )}
 

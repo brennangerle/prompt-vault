@@ -63,6 +63,7 @@ import {
   getPromptsBySharing,
   createUser,
   updateUser,
+  deleteUser,
   ensureEmailVerificationEntries,
   listEmailVerificationEntries
 } from '@/lib/db';
@@ -766,6 +767,24 @@ Problem to solve:
     }
   };
 
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      await deleteUser(userId);
+      setUsers(users.filter(user => user.id !== userId));
+      toast({
+        title: 'User deleted',
+        description: `User has been deleted successfully.`,
+      });
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete user. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleFixEmailVerification = async () => {
     setIsFixingEmailVerification(true);
     try {
@@ -889,6 +908,43 @@ Problem to solve:
                     <p className="text-2xl font-bold">{users.length}</p>
                     <p className="text-sm text-muted-foreground">Users</p>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-0 glass-light">
+              <CardHeader>
+                <CardTitle className="text-2xl font-bold flex items-center gap-3">
+                  <Users className="h-6 w-6 text-primary" />
+                  User Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {users.map(user => (
+                    <div key={user.id} className="flex items-center justify-between p-2 bg-background/30 rounded-lg">
+                      <div>
+                        <p className="font-semibold">{user.email}</p>
+                        <p className="text-sm text-muted-foreground">{user.id}</p>
+                      </div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">Delete</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete User</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this user? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteUser(user.id)}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>

@@ -9,7 +9,7 @@ import {
   sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { createUser, getUserByEmail, addTeamMember, verifyEmailExists, createEmailVerificationEntry, updateUser } from './db';
+import { createUser, createUserWithId, getUserByEmail, addTeamMember, verifyEmailExists, createEmailVerificationEntry, updateUser } from './db';
 import type { User, TeamMember } from './types';
 
 // Predefined tester accounts
@@ -38,10 +38,19 @@ export async function loginUser(email: string, password: string = 'password123')
         await signInWithEmailAndPassword(auth, email, password);
         console.log('Super user Firebase auth successful');
       } catch (authError: any) {
-        if (authError.code === 'auth/user-not-found' || authError.code === 'auth/invalid-credential') {
-          console.log('Creating Firebase auth for super user...');
-          await createUserWithEmailAndPassword(auth, email, password);
-          console.log('Super user Firebase auth created');
+        if (authError.code === 'auth/user-not-found' || authError.code === 'auth/invalid-credential' || authError.code === 'auth/wrong-password') {
+          console.log('Creating/recreating Firebase auth for super user... Error was:', authError.code);
+          try {
+            await createUserWithEmailAndPassword(auth, email, password);
+            console.log('Super user Firebase auth created');
+          } catch (createError: any) {
+            if (createError.code === 'auth/email-already-in-use') {
+              console.log('Firebase auth user exists but password is wrong - this requires manual intervention');
+              throw new Error('Super user account exists but password is incorrect. Please reset password or delete the account in Firebase Console.');
+            } else {
+              throw createError;
+            }
+          }
         } else {
           throw authError;
         }
@@ -53,8 +62,18 @@ export async function loginUser(email: string, password: string = 'password123')
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
     
-    // Get or create user data in database
-    let user = await getUserByEmail(email);
+    // Get or create user data in database (only after Firebase Auth succeeds)
+    let user: User | null = null;
+    try {
+      user = await getUserByEmail(email);
+    } catch (error: any) {
+      if (error.code === 'PERMISSION_DENIED') {
+        console.log('Permission denied reading user - this is expected for new users');
+        user = null;
+      } else {
+        throw error;
+      }
+    }
     
     if (!user) {
       // Create new user if doesn't exist
@@ -93,6 +112,17 @@ export async function loginUser(email: string, password: string = 'password123')
     if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
       // Check if it's a super user trying to login
       if (email === superUserAccount.email && password === superUserAccount.password) {
+        console.log('Super user login attempt in error handler - creating Firebase Auth account');
+        try {
+          await createUserWithEmailAndPassword(auth, email, password);
+          console.log('Super user Firebase auth created in error handler');
+        } catch (createError: any) {
+          if (createError.code === 'auth/email-already-in-use') {
+            throw new Error('Super user account exists but password is incorrect. Please reset password or delete the account in Firebase Console.');
+          } else {
+            throw createError;
+          }
+        }
         return await createOrGetSuperUser();
       }
       
@@ -111,7 +141,10 @@ export async function loginUser(email: string, password: string = 'password123')
       } catch (dbError: any) {
         console.error('Database access error:', dbError);
         if (dbError.code === 'PERMISSION_DENIED') {
-          throw new Error('Permission denied: Unable to verify user. Please check your authentication.');
+          // This is expected for non-authenticated users - just continue with normal flow
+          console.log('Permission denied accessing database - user likely needs to be created');
+        } else {
+          throw dbError;
         }
       }
     }
@@ -170,19 +203,35 @@ async function createOrGetSuperUser(): Promise<User> {
   try {
     console.log('Attempting to get super user from database...');
     // Check if super user already exists
-    let user = await getUserByEmail(superUserAccount.email);
+    let user: User | null = null;
+    try {
+      user = await getUserByEmail(superUserAccount.email);
+    } catch (error: any) {
+      if (error.code === 'PERMISSION_DENIED') {
+        console.log('Permission denied reading super user - will create new one');
+        user = null;
+      } else {
+        throw error;
+      }
+    }
     
     if (!user) {
       console.log('Creating super user in database...');
-      // Create super user in database
+      // Get the current Firebase Auth user ID
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser) {
+        throw new Error('No authenticated user found for super user creation');
+      }
+      
+      // Create super user in database with Firebase Auth UID
       const userData: Omit<User, 'id'> = {
         email: superUserAccount.email,
         role: 'super_user'
       };
       
-      const userId = await createUser(userData);
+      const userId = await createUserWithId(firebaseUser.uid, userData);
       user = { id: userId, ...userData };
-      console.log('Super user created with ID:', userId);
+      console.log('Super user created with Firebase Auth UID:', userId);
     } else {
       console.log('Super user found:', user);
       // Ensure the role is set correctly
@@ -219,7 +268,15 @@ export async function getCurrentUser(): Promise<User | null> {
   const firebaseUser = auth.currentUser;
   if (!firebaseUser) return null;
   
-  return await getUserByEmail(firebaseUser.email!);
+  try {
+    return await getUserByEmail(firebaseUser.email!);
+  } catch (error: any) {
+    if (error.code === 'PERMISSION_DENIED') {
+      console.log('Permission denied getting current user - user may not exist in database');
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function sendPasswordReset(email: string): Promise<void> {

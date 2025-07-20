@@ -51,9 +51,13 @@ interface Prompt {
 - **Responsive Design**: Mobile-friendly with sidebar navigation
 
 ### AI Integration
-- Uses Genkit with Google AI (Gemini 2.0 Flash model)
+- Uses Genkit with configurable AI providers:
+  - GROQ (default for testing phase)
+  - Google AI (Gemini 2.0 Flash model)
+- Provider selection via MODEL_PROVIDER environment variable
 - Prompt optimization flow provides enhanced prompts and suggestions
 - Server-side AI functions with proper schema validation using Zod
+- Error handling and performance monitoring for AI operations
 
 ### Development Notes
 - Uses shadcn/ui component library with Radix UI primitives

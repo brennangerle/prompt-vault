@@ -30,7 +30,7 @@ const prompt = ai.definePrompt({
   input: {schema: GeneratePromptMetadataInputSchema},
   output: {schema: GeneratePromptMetadataOutputSchema},
   prompt: `You are an expert at analyzing and categorizing AI prompts.
-  Based on the following prompt content, generate a concise title and a list of 1-3 relevant tags.
+  Based on the following prompt content, generate a concise title and a list of 1-2 relevant tags.
   The title should be short and descriptive.
   The tags should help categorize the prompt for later discovery.
 
@@ -46,7 +46,60 @@ const generatePromptMetadataFlow = ai.defineFlow(
     outputSchema: GeneratePromptMetadataOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    try {
+      const startTime = Date.now();
+      const modelProvider = process.env.MODEL_PROVIDER?.toLowerCase() || 'groq';
+      
+      let result: GeneratePromptMetadataOutput;
+      
+      if (modelProvider === 'groq') {
+        // Use direct GROQ SDK
+        const { generateWithGroq } = await import('@/ai/genkit');
+        const promptText = `You are an expert at analyzing and categorizing AI prompts.
+Based on the following prompt content, generate a concise title and a list of 1-2 relevant tags.
+The title should be short and descriptive.
+The tags should help categorize the prompt for later discovery.
+
+Prompt Content:
+${input.prompt}
+
+Please respond in the following JSON format:
+{
+  "title": "Your title here",
+  "tags": ["tag1", "tag2"]
+}`;
+        
+        const response = await generateWithGroq(promptText);
+        
+        try {
+          // Parse the JSON response
+          const parsed = JSON.parse(response);
+          result = {
+            title: parsed.title || 'Untitled Prompt',
+            tags: Array.isArray(parsed.tags) ? parsed.tags : ['General']
+          };
+        } catch (parseError) {
+          // Fallback if JSON parsing fails
+          result = {
+            title: 'AI Generated Prompt',
+            tags: ['General']
+          };
+        }
+      } else {
+        // Use Genkit for Gemini
+        const {output} = await prompt(input);
+        result = output!;
+      }
+      
+      // Log performance metrics
+      const endTime = Date.now();
+      console.log(`Metadata generation completed in ${endTime - startTime}ms using ${modelProvider}`);
+      
+      return result;
+    } catch (error) {
+      // Import dynamically to avoid circular dependencies
+      const { handleAIError } = await import('@/ai/error-handler');
+      throw handleAIError(error, 'metadata generation');
+    }
   }
 );

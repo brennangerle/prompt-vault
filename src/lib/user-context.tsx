@@ -21,9 +21,18 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = subscribeToAuthState(async (firebaseUser) => {
       if (firebaseUser) {
         // User is authenticated, get their data
-        const userData = await getCurrentUser();
-        setCurrentUser(userData);
-        setIsAuthenticated(true);
+        try {
+          const userData = await getCurrentUser();
+          setCurrentUser(userData);
+          setIsAuthenticated(true);
+        } catch (error: any) {
+          console.error('Error getting current user:', error);
+          if (error.code === 'PERMISSION_DENIED') {
+            console.log('Permission denied - user may not exist in database yet');
+          }
+          setCurrentUser(null);
+          setIsAuthenticated(true); // Still authenticated with Firebase, just no DB record
+        }
       } else {
         // User is not authenticated
         setCurrentUser(null);

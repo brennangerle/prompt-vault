@@ -4,20 +4,22 @@
     ".write": "auth != null",
     "users": {
       ".indexOn": "email",
+      ".read": "auth != null",
       "$userId": {
         ".read": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
-        ".write": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'super_user')"
+        ".write": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'super_user' || (!data.exists() && auth.uid == $userId))"
       }
     },
     "email-verification": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
-      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'super_user' || !data.exists())",
       "$emailKey": {
         ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
-        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'"
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'super_user' || !data.exists())"
       }
     },
     "teams": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
       "$teamId": {
         ".read": "auth != null && (root.child('teams').child($teamId).child('members').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
         ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
@@ -45,6 +47,7 @@
     },
     "prompts": {
       ".indexOn": ["createdBy", "sharing", "teamId"],
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
       "$promptId": {
         ".read": "auth != null && (data.child('sharing').val() == 'global' || data.child('createdBy').val() == auth.uid || (data.child('sharing').val() == 'team' && data.child('teamId').exists() && root.child('users').child(auth.uid).child('teamId').val() == data.child('teamId').val()) || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
         ".write": "auth != null && ((!data.exists() && newData.child('createdBy').val() == auth.uid) || data.child('createdBy').val() == auth.uid || root.child('users').child(auth.uid).child('role').val() == 'super_user')",

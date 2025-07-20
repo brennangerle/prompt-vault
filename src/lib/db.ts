@@ -38,6 +38,19 @@ export async function createUser(userData: Omit<User, 'id'>): Promise<string> {
   return newUserRef.key!;
 }
 
+export async function createUserWithId(userId: string, userData: Omit<User, 'id'>): Promise<string> {
+  console.log('Creating user with specific ID:', userId, userData);
+  const userRef = ref(database, `users/${userId}`);
+  await set(userRef, userData);
+  console.log('User created with specified ID:', userId);
+  
+  // Also create email verification entry for first-time login
+  console.log('Creating email verification entry for user:', userData.email);
+  await createEmailVerificationEntry(userData.email, userId, userData.teamId);
+  
+  return userId;
+}
+
 export async function getUser(userId: string): Promise<User | null> {
   const userRef = ref(database, `users/${userId}`);
   const snapshot = await get(userRef);
@@ -69,6 +82,18 @@ export async function updateUser(userId: string, updates: Partial<User>): Promis
   );
   
   await set(userRef, filteredUpdates);
+}
+
+export async function deleteUser(userId: string): Promise<void> {
+  const user = await getUser(userId);
+  if (!user) return;
+
+  const userRef = ref(database, `users/${userId}`);
+  await remove(userRef);
+
+  const emailKey = user.email.replace(/[.@]/g, '_');
+  const verificationRef = ref(database, `email-verification/${emailKey}`);
+  await remove(verificationRef);
 }
 
 // Team operations
