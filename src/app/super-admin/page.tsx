@@ -52,6 +52,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { AuthGuard } from '@/components/auth-guard';
 import { useToast } from '@/hooks/use-toast';
+import { usePromptCounts } from '@/hooks/use-prompt-counts';
 import { 
   getAllTeams,
   createTeam,
@@ -69,6 +70,7 @@ import {
 } from '@/lib/db';
 import { useUser } from '@/lib/user-context';
 import { canAccessSuperAdmin, isSuperUser } from '@/lib/permissions';
+import { TeamPromptSelector } from '@/components/team-prompt-selector';
 import type { Team, User, TeamMember, Prompt } from '@/lib/types';
 
 export default function SuperAdminPage() {
@@ -90,8 +92,18 @@ export default function SuperAdminPage() {
   const [selectedTeamForBulkPrompts, setSelectedTeamForBulkPrompts] = React.useState<string>('');
   const [isProcessingBulkPrompts, setIsProcessingBulkPrompts] = React.useState(false);
   const [userSortOrder, setUserSortOrder] = React.useState<'team' | 'user'>('team');
+  const [selectedTeamForManagement, setSelectedTeamForManagement] = React.useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
+  
+  // Use the prompt counts hook for team selector
+  const { 
+    teams: promptTeams, 
+    promptCounts, 
+    isLoading: isLoadingPromptCounts, 
+    error: promptCountsError,
+    refetch: refetchPromptCounts
+  } = usePromptCounts();
 
   const sortedUsers = React.useMemo(() => {
     if (userSortOrder === 'user') {
@@ -1234,6 +1246,17 @@ Problem to solve:
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Team Selector for Prompt Management */}
+              <TeamPromptSelector
+                teams={promptTeams}
+                selectedTeam={selectedTeamForManagement}
+                onTeamSelect={setSelectedTeamForManagement}
+                promptCounts={promptCounts}
+                isLoading={isLoadingPromptCounts}
+                error={promptCountsError}
+                onRefresh={refetchPromptCounts}
+              />
+              
               {/* Create Prompt */}
               <form onSubmit={handleCreatePrompt} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

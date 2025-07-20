@@ -8,6 +8,57 @@ export interface Prompt {
   createdBy?: string;
   teamId?: string;
   createdAt?: string;
+  // Enhanced fields for prompt management
+  lastModified?: string;
+  modifiedBy?: string;
+  usageCount?: number;
+  lastUsed?: string | null;
+  assignedTeams?: string[]; // For multi-team assignment
+  metadata?: {
+    version: number;
+    changelog: ChangelogEntry[];
+  };
+}
+
+export interface ChangelogEntry {
+  timestamp: string;
+  userId: string;
+  action: 'created' | 'updated' | 'deleted' | 'tagged' | 'assigned' | 'unassigned';
+  changes: Record<string, { old: any; new: any }>;
+}
+
+export interface PromptUsageLog {
+  id: string;
+  promptId: string;
+  userId: string;
+  teamId: string | null;
+  timestamp: string;
+  action: 'viewed' | 'copied' | 'used' | 'optimized';
+}
+
+export interface PromptUsageAnalytics {
+  totalUsage: number;
+  lastUsed: string | null;
+  usageByTeam: Record<string, number>;
+  usageByUser: Record<string, number>;
+  usageTrend: UsageDataPoint[];
+}
+
+export interface UsageDataPoint {
+  date: string;
+  count: number;
+}
+
+export interface TeamPromptAssignment {
+  teamId: string;
+  promptId: string;
+  assignedBy: string;
+  assignedAt: string;
+  permissions: {
+    canEdit: boolean;
+    canDelete: boolean;
+    canReassign: boolean;
+  };
 }
 
 export interface User {

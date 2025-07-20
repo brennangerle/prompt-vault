@@ -13,7 +13,15 @@ import {
   DatabaseReference
 } from 'firebase/database';
 import { database } from './firebase';
-import type { Prompt, User, TeamMember, Team } from './types';
+import type { 
+  Prompt, 
+  User, 
+  TeamMember, 
+  Team, 
+  PromptUsageLog, 
+  PromptUsageAnalytics, 
+  TeamPromptAssignment 
+} from './types';
 import { canEditPrompt, canDeletePrompt } from './permissions';
 import { getCurrentUser } from './auth';
 
@@ -291,11 +299,30 @@ export async function isUserAdmin(userId: string, teamId: string): Promise<boole
 export async function createPrompt(prompt: Omit<Prompt, 'id'>): Promise<string> {
   const promptsRef = ref(database, 'prompts');
   const newPromptRef = push(promptsRef);
+  const now = new Date().toISOString();
   const promptWithTimestamp = {
     ...prompt,
-    createdAt: new Date().toISOString()
+    createdAt: now,
+    lastModified: now,
+    modifiedBy: prompt.createdBy,
+    usageCount: 0,
+    lastUsed: null,
+    assignedTeams: prompt.teamId ? [prompt.teamId] : [],
+    metadata: {
+      version: 1,
+      changelog: [{
+        timestamp: now,
+        userId: prompt.createdBy || 'system',
+        action: 'created' as const,
+        changes: {}
+      }]
+    }
   };
   await set(newPromptRef, promptWithTimestamp);
+  
+  // Log the creation
+  await logPromptUsage(newPromptRef.key!, prompt.createdBy || 'system', prompt.teamId || null, 'created');
+  
   return newPromptRef.key!;
 }
 
@@ -309,7 +336,7 @@ export async function getPrompt(promptId: string): Promise<Prompt | null> {
   return null;
 }
 
-export async function updatePrompt(promptId: string, updates: Partial<Prompt>): Promise<void> {
+export async function updatePrompt(promptId: string, updates: Partial<Prompt>, userId?: string): Promise<void> {
   // Check if current user has permission to edit prompts
   const currentUser = await getCurrentUser();
   if (!canEditPrompt(currentUser)) {
@@ -321,7 +348,44 @@ export async function updatePrompt(promptId: string, updates: Partial<Prompt>): 
   
   if (snapshot.exists()) {
     const currentData = snapshot.val();
-    await set(promptRef, { ...currentData, ...updates });
+    const now = new Date().toISOString();
+    const modifiedBy = userId || currentUser?.id || 'system';
+    
+    // Calculate changes for changelog
+    const changes: Record<string, { old: any; new: any }> = {};
+    Object.keys(updates).forEach(key => {
+      if (currentData[key] !== updates[key as keyof Prompt]) {
+        changes[key] = { old: currentData[key], new: updates[key as keyof Prompt] };
+      }
+    });
+    
+    // Update metadata
+    const currentMetadata = currentData.metadata || { version: 1, changelog: [] };
+    const newMetadata = {
+      version: currentMetadata.version + 1,
+      changelog: [
+        ...currentMetadata.changelog,
+        {
+          timestamp: now,
+          userId: modifiedBy,
+          action: 'updated' as const,
+          changes
+        }
+      ]
+    };
+    
+    const updatedPrompt = {
+      ...currentData,
+      ...updates,
+      lastModified: now,
+      modifiedBy,
+      metadata: newMetadata
+    };
+    
+    await set(promptRef, updatedPrompt);
+    
+    // Log the update
+    await logPromptUsage(promptId, modifiedBy, currentData.teamId || null, 'updated');
   }
 }
 
@@ -391,7 +455,7 @@ export async function getPromptsBySharing(
   return [];
 }
 
-""// Real-time listeners
+// Real-time listeners
 export function subscribeToPrompts(
   callback: (prompts: Prompt[]) => void,
   userId?: string,
@@ -517,4 +581,354 @@ export function subscribeToTeamMembers(
   });
   
   return () => off(teamRef, 'value', unsubscribe);
+}
+
+// Enhanced Prompt Management Functions
+
+// Usage tracking functions
+export async function logPromptUsage(
+  promptId: string, 
+  userId: string, 
+  teamId: string | null, 
+  action: 'viewed' | 'copied' | 'used' | 'optimized' | 'created' | 'updated'
+): Promise<void> {
+  const usageLogsRef = ref(database, 'prompt-usage-logs');
+  const newLogRef = push(usageLogsRef);
+  
+  const usageLog = {
+    promptId,
+    userId,
+    teamId,
+    timestamp: new Date().toISOString(),
+    action
+  };
+  
+  await set(newLogRef, usageLog);
+  
+  // Update prompt usage count if it's a usage action
+  if (['viewed', 'copied', 'used', 'optimized'].includes(action)) {
+    await incrementPromptUsageCount(promptId);
+  }
+}
+
+export async function incrementPromptUsageCount(promptId: string): Promise<void> {
+  const promptRef = ref(database, `prompts/${promptId}`);
+  const snapshot = await get(promptRef);
+  
+  if (snapshot.exists()) {
+    const currentData = snapshot.val();
+    const currentCount = currentData.usageCount || 0;
+    const now = new Date().toISOString();
+    
+    await set(promptRef, {
+      ...currentData,
+      usageCount: currentCount + 1,
+      lastUsed: now
+    });
+  }
+}
+
+export async function getPromptUsageAnalytics(promptId: string): Promise<PromptUsageAnalytics> {
+  const usageLogsRef = ref(database, 'prompt-usage-logs');
+  const promptLogsQuery = query(usageLogsRef, orderByChild('promptId'), equalTo(promptId));
+  const snapshot = await get(promptLogsQuery);
+  
+  const analytics: PromptUsageAnalytics = {
+    totalUsage: 0,
+    lastUsed: null,
+    usageByTeam: {},
+    usageByUser: {},
+    usageTrend: []
+  };
+  
+  if (snapshot.exists()) {
+    const logsData = snapshot.val();
+    const logs = Object.values(logsData) as PromptUsageLog[];
+    
+    // Filter for usage actions only
+    const usageLogs = logs.filter(log => 
+      ['viewed', 'copied', 'used', 'optimized'].includes(log.action)
+    );
+    
+    analytics.totalUsage = usageLogs.length;
+    
+    // Find last used date
+    const sortedLogs = usageLogs.sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+    analytics.lastUsed = sortedLogs.length > 0 ? sortedLogs[0].timestamp : null;
+    
+    // Calculate usage by team
+    usageLogs.forEach(log => {
+      const teamKey = log.teamId || 'no-team';
+      analytics.usageByTeam[teamKey] = (analytics.usageByTeam[teamKey] || 0) + 1;
+    });
+    
+    // Calculate usage by user
+    usageLogs.forEach(log => {
+      analytics.usageByUser[log.userId] = (analytics.usageByUser[log.userId] || 0) + 1;
+    });
+    
+    // Calculate usage trend (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentLogs = usageLogs.filter(log => 
+      new Date(log.timestamp) >= thirtyDaysAgo
+    );
+    
+    const dailyUsage: Record<string, number> = {};
+    recentLogs.forEach(log => {
+      const date = log.timestamp.split('T')[0]; // Get YYYY-MM-DD
+      dailyUsage[date] = (dailyUsage[date] || 0) + 1;
+    });
+    
+    analytics.usageTrend = Object.entries(dailyUsage)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+  
+  return analytics;
+}
+
+export async function getPromptUsageLogs(
+  promptId?: string,
+  userId?: string,
+  teamId?: string,
+  limit?: number
+): Promise<PromptUsageLog[]> {
+  const usageLogsRef = ref(database, 'prompt-usage-logs');
+  let logsQuery: Query = usageLogsRef;
+  
+  if (promptId) {
+    logsQuery = query(usageLogsRef, orderByChild('promptId'), equalTo(promptId));
+  } else if (userId) {
+    logsQuery = query(usageLogsRef, orderByChild('userId'), equalTo(userId));
+  } else if (teamId) {
+    logsQuery = query(usageLogsRef, orderByChild('teamId'), equalTo(teamId));
+  }
+  
+  const snapshot = await get(logsQuery);
+  
+  if (snapshot.exists()) {
+    const logsData = snapshot.val();
+    let logs = Object.keys(logsData).map(logId => ({
+      id: logId,
+      ...logsData[logId]
+    })) as PromptUsageLog[];
+    
+    // Sort by timestamp descending
+    logs = logs.sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+    
+    // Apply limit if specified
+    if (limit) {
+      logs = logs.slice(0, limit);
+    }
+    
+    return logs;
+  }
+  
+  return [];
+}
+
+// Team assignment functions
+export async function assignPromptToTeam(
+  promptId: string, 
+  teamId: string, 
+  assignedBy: string,
+  permissions: { canEdit: boolean; canDelete: boolean; canReassign: boolean } = {
+    canEdit: false,
+    canDelete: false,
+    canReassign: false
+  }
+): Promise<void> {
+  const assignmentRef = ref(database, `team-prompt-assignments/${teamId}/${promptId}`);
+  const assignment: TeamPromptAssignment = {
+    teamId,
+    promptId,
+    assignedBy,
+    assignedAt: new Date().toISOString(),
+    permissions
+  };
+  
+  await set(assignmentRef, assignment);
+  
+  // Update prompt's assignedTeams array
+  const promptRef = ref(database, `prompts/${promptId}`);
+  const promptSnapshot = await get(promptRef);
+  
+  if (promptSnapshot.exists()) {
+    const promptData = promptSnapshot.val();
+    const currentAssignedTeams = promptData.assignedTeams || [];
+    
+    if (!currentAssignedTeams.includes(teamId)) {
+      const updatedAssignedTeams = [...currentAssignedTeams, teamId];
+      await set(promptRef, {
+        ...promptData,
+        assignedTeams: updatedAssignedTeams,
+        lastModified: new Date().toISOString(),
+        modifiedBy: assignedBy
+      });
+      
+      // Log the assignment
+      await logPromptUsage(promptId, assignedBy, teamId, 'assigned' as any);
+    }
+  }
+}
+
+export async function unassignPromptFromTeam(
+  promptId: string, 
+  teamId: string, 
+  unassignedBy: string
+): Promise<void> {
+  const assignmentRef = ref(database, `team-prompt-assignments/${teamId}/${promptId}`);
+  await remove(assignmentRef);
+  
+  // Update prompt's assignedTeams array
+  const promptRef = ref(database, `prompts/${promptId}`);
+  const promptSnapshot = await get(promptRef);
+  
+  if (promptSnapshot.exists()) {
+    const promptData = promptSnapshot.val();
+    const currentAssignedTeams = promptData.assignedTeams || [];
+    const updatedAssignedTeams = currentAssignedTeams.filter((id: string) => id !== teamId);
+    
+    await set(promptRef, {
+      ...promptData,
+      assignedTeams: updatedAssignedTeams,
+      lastModified: new Date().toISOString(),
+      modifiedBy: unassignedBy
+    });
+    
+    // Log the unassignment
+    await logPromptUsage(promptId, unassignedBy, teamId, 'unassigned' as any);
+  }
+}
+
+export async function getTeamPromptAssignments(teamId: string): Promise<TeamPromptAssignment[]> {
+  const assignmentsRef = ref(database, `team-prompt-assignments/${teamId}`);
+  const snapshot = await get(assignmentsRef);
+  
+  if (snapshot.exists()) {
+    const assignmentsData = snapshot.val();
+    return Object.keys(assignmentsData).map(promptId => ({
+      ...assignmentsData[promptId]
+    }));
+  }
+  
+  return [];
+}
+
+export async function getPromptTeamAssignments(promptId: string): Promise<TeamPromptAssignment[]> {
+  const assignmentsRef = ref(database, 'team-prompt-assignments');
+  const snapshot = await get(assignmentsRef);
+  
+  const assignments: TeamPromptAssignment[] = [];
+  
+  if (snapshot.exists()) {
+    const allAssignments = snapshot.val();
+    
+    // Search through all teams for this prompt
+    Object.keys(allAssignments).forEach(teamId => {
+      const teamAssignments = allAssignments[teamId];
+      if (teamAssignments[promptId]) {
+        assignments.push(teamAssignments[promptId]);
+      }
+    });
+  }
+  
+  return assignments;
+}
+
+export async function bulkAssignPromptsToTeam(
+  promptIds: string[], 
+  teamId: string, 
+  assignedBy: string,
+  permissions: { canEdit: boolean; canDelete: boolean; canReassign: boolean } = {
+    canEdit: false,
+    canDelete: false,
+    canReassign: false
+  }
+): Promise<void> {
+  const promises = promptIds.map(promptId => 
+    assignPromptToTeam(promptId, teamId, assignedBy, permissions)
+  );
+  
+  await Promise.all(promises);
+}
+
+export async function bulkUnassignPromptsFromTeam(
+  promptIds: string[], 
+  teamId: string, 
+  unassignedBy: string
+): Promise<void> {
+  const promises = promptIds.map(promptId => 
+    unassignPromptFromTeam(promptId, teamId, unassignedBy)
+  );
+  
+  await Promise.all(promises);
+}
+
+// Enhanced prompt queries with analytics
+export async function getPromptsWithAnalytics(
+  filters?: {
+    teamId?: string;
+    sharing?: 'private' | 'team' | 'global';
+    tags?: string[];
+    createdBy?: string;
+    hasUsage?: boolean;
+  }
+): Promise<(Prompt & { analytics: PromptUsageAnalytics })[]> {
+  let prompts: Prompt[] = [];
+  
+  if (filters?.sharing) {
+    prompts = await getPromptsBySharing(filters.sharing, filters.teamId);
+  } else {
+    const promptsRef = ref(database, 'prompts');
+    const snapshot = await get(promptsRef);
+    
+    if (snapshot.exists()) {
+      const promptsData = snapshot.val();
+      prompts = Object.keys(promptsData).map(promptId => ({
+        id: promptId,
+        ...promptsData[promptId]
+      }));
+    }
+  }
+  
+  // Apply additional filters
+  if (filters?.teamId) {
+    prompts = prompts.filter(p => 
+      p.assignedTeams?.includes(filters.teamId!) || p.teamId === filters.teamId
+    );
+  }
+  
+  if (filters?.tags && filters.tags.length > 0) {
+    prompts = prompts.filter(p => 
+      filters.tags!.some(tag => p.tags.includes(tag))
+    );
+  }
+  
+  if (filters?.createdBy) {
+    prompts = prompts.filter(p => p.createdBy === filters.createdBy);
+  }
+  
+  if (filters?.hasUsage !== undefined) {
+    prompts = prompts.filter(p => {
+      const hasUsage = (p.usageCount || 0) > 0;
+      return filters.hasUsage ? hasUsage : !hasUsage;
+    });
+  }
+  
+  // Get analytics for each prompt
+  const promptsWithAnalytics = await Promise.all(
+    prompts.map(async (prompt) => {
+      const analytics = await getPromptUsageAnalytics(prompt.id);
+      return { ...prompt, analytics };
+    })
+  );
+  
+  return promptsWithAnalytics;
 }
