@@ -89,8 +89,32 @@ export default function SuperAdminPage() {
   const [bulkPromptSharing, setBulkPromptSharing] = React.useState<'team' | 'global'>('global');
   const [selectedTeamForBulkPrompts, setSelectedTeamForBulkPrompts] = React.useState<string>('');
   const [isProcessingBulkPrompts, setIsProcessingBulkPrompts] = React.useState(false);
+  const [userSortOrder, setUserSortOrder] = React.useState<'team' | 'user'>('team');
   const router = useRouter();
   const { toast } = useToast();
+
+  const sortedUsers = React.useMemo(() => {
+    if (userSortOrder === 'user') {
+      return [...users].sort((a, b) => a.email.localeCompare(b.email));
+    }
+
+    // Group users by team
+    const usersByTeam: Record<string, User[]> = {};
+    const unassignedUsers: User[] = [];
+
+    users.forEach(user => {
+      if (user.teamId) {
+        if (!usersByTeam[user.teamId]) {
+          usersByTeam[user.teamId] = [];
+        }
+        usersByTeam[user.teamId].push(user);
+      } else {
+        unassignedUsers.push(user);
+      }
+    });
+
+    return { usersByTeam, unassignedUsers };
+  }, [users, userSortOrder]);
 
   React.useEffect(() => {
     const initData = async () => {
@@ -911,43 +935,7 @@ Problem to solve:
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-0 glass-light">
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold flex items-center gap-3">
-                  <Users className="h-6 w-6 text-primary" />
-                  User Management
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {users.map(user => (
-                    <div key={user.id} className="flex items-center justify-between p-2 bg-background/30 rounded-lg">
-                      <div>
-                        <p className="font-semibold">{user.email}</p>
-                        <p className="text-sm text-muted-foreground">{user.id}</p>
-                      </div>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm">Delete</Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete User</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete this user? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteUser(user.id)}>Delete</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            
             <Card className="border-0 glass-light">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
@@ -1118,6 +1106,122 @@ Problem to solve:
                   </Card>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 glass-light">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-2xl font-bold flex items-center gap-3">
+                  <Users className="h-6 w-6 text-primary" />
+                  User Management
+                </CardTitle>
+                <Select value={userSortOrder} onValueChange={(value: 'team' | 'user') => setUserSortOrder(value)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="team">Sort by Team</SelectItem>
+                    <SelectItem value="user">Sort by User</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {userSortOrder === 'team' ? (
+                <div className="space-y-4">
+                  {teams.map(team => (
+                    <div key={team.id}>
+                      <h3 className="font-semibold text-lg mb-2">{team.name}</h3>
+                      <div className="space-y-2">
+                        {(sortedUsers as { usersByTeam: Record<string, User[]> }).usersByTeam[team.id]?.map(user => (
+                          <div key={user.id} className="flex items-center justify-between p-2 bg-background/30 rounded-lg">
+                            <div>
+                              <p className="font-semibold">{user.email}</p>
+                              <p className="text-sm text-muted-foreground">{user.id}</p>
+                            </div>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm">Delete</Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this user? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteUser(user.id)}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <div>
+                    <h3 className="font-semibold text-lg mb-2">Unassigned</h3>
+                    <div className="space-y-2">
+                      {(sortedUsers as { unassignedUsers: User[] }).unassignedUsers.map(user => (
+                        <div key={user.id} className="flex items-center justify-between p-2 bg-background/30 rounded-lg">
+                          <div>
+                            <p className="font-semibold">{user.email}</p>
+                            <p className="text-sm text-muted-foreground">{user.id}</p>
+                          </div>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="sm">Delete</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this user? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteUser(user.id)}>Delete</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {(sortedUsers as User[]).map(user => (
+                    <div key={user.id} className="flex items-center justify-between p-2 bg-background/30 rounded-lg">
+                      <div>
+                        <p className="font-semibold">{user.email}</p>
+                        <p className="text-sm text-muted-foreground">{user.id}</p>
+                      </div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">Delete</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete User</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this user? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteUser(user.id)}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
