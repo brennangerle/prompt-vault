@@ -20,7 +20,12 @@ import type {
   Team, 
   PromptUsageLog, 
   PromptUsageAnalytics, 
-  TeamPromptAssignment 
+  TeamPromptAssignment,
+  PromptExportData,
+  ImportResult,
+  ImportError,
+  ConflictResolution,
+  ImportPreview
 } from './types';
 import { canEditPrompt, canDeletePrompt } from './permissions';
 import { getCurrentUser } from './auth';
@@ -1045,7 +1050,7 @@ export async function getAllTags(options?: {
   }));
 
   if (options?.minUsageCount) {
-    tagArray = tagArray.filter(tag => tag.count >= options.minUsageCount);
+    tagArray = tagArray.filter(tag => tag.count >= options.minUsageCount!);
   }
 
   // Sort by count descending
@@ -1562,4 +1567,768 @@ export async function getPromptsWithAnalytics(
   );
   
   return promptsWithAnalytics;
+}
+
+// Import/Export functions
+export async function exportPrompts(options: {
+  scope: 'global' | 'team' | 'selected';
+  teamId?: string;
+  selectedPromptIds?: string[];
+  exportedBy: string;
+}): Promise<PromptExportData> {
+  let prompts: Prompt[] = [];
+  let teamAssignments: TeamPromptAssignment[] = [];
+  let teamsIncluded: string[] = [];
+
+  const { scope, teamId, selectedPromptIds, exportedBy } = options;
+
+  if (scope === 'global') {
+    // Export all prompts
+    prompts = await getAllPrompts();
+    
+    // Get all team assignments
+    const assignmentsRef = ref(database, 'team-prompt-assignments');
+    const assignmentsSnapshot = await get(assignmentsRef);
+    
+    if (assignmentsSnapshot.exists()) {
+      const allAssignments = assignmentsSnapshot.val();
+      Object.keys(allAssignments).forEach(teamId => {
+        const teamAssignmentsData = allAssignments[teamId];
+        Object.keys(teamAssignmentsData).forEach(promptId => {
+          teamAssignments.push(teamAssignmentsData[promptId]);
+        });
+      });
+      teamsIncluded = Object.keys(allAssignments);
+    }
+  } else if (scope === 'team' && teamId) {
+    // Export team-specific prompts and global prompts
+    const allPrompts = await getAllPrompts();
+    prompts = allPrompts.filter(p => 
+      p.sharing === 'global' || 
+      (p.sharing === 'team' && p.teamId === teamId) ||
+      p.assignedTeams?.includes(teamId)
+    );
+    
+    // Get team assignments for this team
+    teamAssignments = await getTeamPromptAssignments(teamId);
+    teamsIncluded = [teamId];
+  } else if (scope === 'selected' && selectedPromptIds) {
+    // Export selected prompts
+    const promptPromises = selectedPromptIds.map(id => getPrompt(id));
+    const promptResults = await Promise.all(promptPromises);
+    prompts = promptResults.filter(p => p !== null) as Prompt[];
+    
+    // Get team assignments for selected prompts
+    for (const promptId of selectedPromptIds) {
+      const assignments = await getPromptTeamAssignments(promptId);
+      teamAssignments.push(...assignments);
+    }
+    
+    teamsIncluded = Array.from(new Set(teamAssignments.map(a => a.teamId)));
+  }
+
+  const exportData: PromptExportData = {
+    version: '1.0.0',
+    exportedAt: new Date().toISOString(),
+    exportedBy,
+    prompts,
+    teamAssignments,
+    metadata: {
+      totalPrompts: prompts.length,
+      teamsIncluded,
+      exportScope: scope,
+      selectedTeamId: teamId
+    }
+  };
+
+  return exportData;
+}
+
+export async function validateImportData(data: any): Promise<{ valid: boolean; errors: ImportError[] }> {
+  const errors: ImportError[] = [];
+
+  // Check if data has required structure
+  if (!data || typeof data !== 'object') {
+    errors.push({
+      type: 'validation',
+      message: 'Invalid file format: not a valid JSON object'
+    });
+    return { valid: false, errors };
+  }
+
+  // Check version
+  if (!data.version) {
+    errors.push({
+      type: 'validation',
+      message: 'Missing version information'
+    });
+  }
+
+  // Check prompts array
+  if (!Array.isArray(data.prompts)) {
+    errors.push({
+      type: 'validation',
+      message: 'Invalid prompts data: must be an array'
+    });
+    return { valid: false, errors };
+  }
+
+  // Validate each prompt
+  data.prompts.forEach((prompt: any, index: number) => {
+    if (!prompt.id || typeof prompt.id !== 'string') {
+      errors.push({
+        type: 'validation',
+        message: `Prompt at index ${index}: missing or invalid ID`,
+        promptId: prompt.id,
+        promptTitle: prompt.title
+      });
+    }
+
+    if (!prompt.title || typeof prompt.title !== 'string') {
+      errors.push({
+        type: 'validation',
+        message: `Prompt at index ${index}: missing or invalid title`,
+        promptId: prompt.id,
+        promptTitle: prompt.title
+      });
+    }
+
+    if (!prompt.content || typeof prompt.content !== 'string') {
+      errors.push({
+        type: 'validation',
+        message: `Prompt at index ${index}: missing or invalid content`,
+        promptId: prompt.id,
+        promptTitle: prompt.title
+      });
+    }
+
+    if (!prompt.sharing || !['private', 'team', 'global'].includes(prompt.sharing)) {
+      errors.push({
+        type: 'validation',
+        message: `Prompt at index ${index}: invalid sharing setting`,
+        promptId: prompt.id,
+        promptTitle: prompt.title
+      });
+    }
+
+    if (!Array.isArray(prompt.tags)) {
+      errors.push({
+        type: 'validation',
+        message: `Prompt at index ${index}: tags must be an array`,
+        promptId: prompt.id,
+        promptTitle: prompt.title
+      });
+    }
+  });
+
+  // Validate team assignments if present
+  if (data.teamAssignments && !Array.isArray(data.teamAssignments)) {
+    errors.push({
+      type: 'validation',
+      message: 'Invalid team assignments data: must be an array'
+    });
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+export async function previewImport(data: PromptExportData, targetTeamId?: string): Promise<ImportPreview> {
+  const { valid, errors } = await validateImportData(data);
+  
+  if (!valid) {
+    return {
+      totalPrompts: 0,
+      newPrompts: [],
+      conflictingPrompts: [],
+      invalidPrompts: errors,
+      teamsToAssign: [],
+      estimatedChanges: { creates: 0, updates: 0, skips: 0 }
+    };
+  }
+
+  const existingPrompts = await getAllPrompts();
+  const existingPromptsMap = new Map(existingPrompts.map(p => [p.id, p]));
+  
+  const newPrompts: Prompt[] = [];
+  const conflictingPrompts: ConflictResolution[] = [];
+  const invalidPrompts: ImportError[] = [];
+  
+  let creates = 0;
+  let updates = 0;
+  let skips = 0;
+
+  for (const importedPrompt of data.prompts) {
+    const existingPrompt = existingPromptsMap.get(importedPrompt.id);
+    
+    if (!existingPrompt) {
+      // New prompt
+      newPrompts.push(importedPrompt);
+      creates++;
+    } else {
+      // Conflicting prompt - check if content differs
+      const hasChanges = 
+        existingPrompt.title !== importedPrompt.title ||
+        existingPrompt.content !== importedPrompt.content ||
+        JSON.stringify(existingPrompt.tags?.sort()) !== JSON.stringify(importedPrompt.tags?.sort()) ||
+        existingPrompt.sharing !== importedPrompt.sharing;
+
+      if (hasChanges) {
+        conflictingPrompts.push({
+          promptId: importedPrompt.id,
+          existingPrompt,
+          importedPrompt,
+          resolution: 'skip', // Default resolution
+          reason: 'Prompt with same ID exists but has different content'
+        });
+        updates++;
+      } else {
+        skips++;
+      }
+    }
+  }
+
+  // Determine teams that will be assigned
+  const teamsToAssign = targetTeamId 
+    ? [targetTeamId]
+    : Array.from(new Set(data.teamAssignments?.map(a => a.teamId) || []));
+
+  return {
+    totalPrompts: data.prompts.length,
+    newPrompts,
+    conflictingPrompts,
+    invalidPrompts,
+    teamsToAssign,
+    estimatedChanges: { creates, updates, skips }
+  };
+}
+
+export async function importPrompts(
+  data: PromptExportData,
+  options: {
+    conflictResolutions: Record<string, 'skip' | 'overwrite' | 'create_new'>;
+    targetTeamId?: string;
+    importedBy: string;
+  }
+): Promise<ImportResult> {
+  const { conflictResolutions, targetTeamId, importedBy } = options;
+  
+  const { valid, errors } = await validateImportData(data);
+  if (!valid) {
+    return {
+      success: false,
+      imported: 0,
+      skipped: 0,
+      errors,
+      conflicts: []
+    };
+  }
+
+  const existingPrompts = await getAllPrompts();
+  const existingPromptsMap = new Map(existingPrompts.map(p => [p.id, p]));
+  
+  let imported = 0;
+  let skipped = 0;
+  const importErrors: ImportError[] = [];
+  const conflicts: ConflictResolution[] = [];
+
+  for (const importedPrompt of data.prompts) {
+    try {
+      const existingPrompt = existingPromptsMap.get(importedPrompt.id);
+      
+      if (!existingPrompt) {
+        // New prompt - create it
+        const promptToCreate = {
+          ...importedPrompt,
+          createdBy: importedBy,
+          teamId: targetTeamId || importedPrompt.teamId,
+          createdAt: new Date().toISOString(),
+          lastModified: new Date().toISOString(),
+          modifiedBy: importedBy,
+          usageCount: 0,
+          lastUsed: null,
+          assignedTeams: targetTeamId ? [targetTeamId] : (importedPrompt.assignedTeams || []),
+          metadata: {
+            version: 1,
+            changelog: [{
+              timestamp: new Date().toISOString(),
+              userId: importedBy,
+              action: 'created' as const,
+              changes: {}
+            }]
+          }
+        };
+        
+        const promptRef = ref(database, `prompts/${importedPrompt.id}`);
+        await set(promptRef, promptToCreate);
+        imported++;
+        
+        // Log the import
+        await logPromptUsage(importedPrompt.id, importedBy, targetTeamId || null, 'created');
+        
+      } else {
+        // Handle conflict based on resolution
+        const resolution = conflictResolutions[importedPrompt.id] || 'skip';
+        
+        const conflict: ConflictResolution = {
+          promptId: importedPrompt.id,
+          existingPrompt,
+          importedPrompt,
+          resolution,
+          reason: 'Prompt with same ID exists'
+        };
+        conflicts.push(conflict);
+        
+        if (resolution === 'overwrite') {
+          // Update existing prompt
+          const updatedPrompt = {
+            ...existingPrompt,
+            ...importedPrompt,
+            lastModified: new Date().toISOString(),
+            modifiedBy: importedBy,
+            metadata: {
+              version: (existingPrompt.metadata?.version || 1) + 1,
+              changelog: [
+                ...(existingPrompt.metadata?.changelog || []),
+                {
+                  timestamp: new Date().toISOString(),
+                  userId: importedBy,
+                  action: 'updated' as const,
+                  changes: { source: { old: 'existing', new: 'imported' } }
+                }
+              ]
+            }
+          };
+          
+          const promptRef = ref(database, `prompts/${importedPrompt.id}`);
+          await set(promptRef, updatedPrompt);
+          imported++;
+          
+          // Log the update
+          await logPromptUsage(importedPrompt.id, importedBy, targetTeamId || null, 'updated');
+          
+        } else if (resolution === 'create_new') {
+          // Create with new ID
+          const newId = `${importedPrompt.id}_imported_${Date.now()}`;
+          const promptToCreate = {
+            ...importedPrompt,
+            id: newId,
+            createdBy: importedBy,
+            teamId: targetTeamId || importedPrompt.teamId,
+            createdAt: new Date().toISOString(),
+            lastModified: new Date().toISOString(),
+            modifiedBy: importedBy,
+            usageCount: 0,
+            lastUsed: null,
+            assignedTeams: targetTeamId ? [targetTeamId] : (importedPrompt.assignedTeams || []),
+            metadata: {
+              version: 1,
+              changelog: [{
+                timestamp: new Date().toISOString(),
+                userId: importedBy,
+                action: 'created' as const,
+                changes: { source: { old: null, new: 'imported_as_new' } }
+              }]
+            }
+          };
+          
+          const promptRef = ref(database, `prompts/${newId}`);
+          await set(promptRef, promptToCreate);
+          imported++;
+          
+          // Log the creation
+          await logPromptUsage(newId, importedBy, targetTeamId || null, 'created');
+          
+        } else {
+          // Skip
+          skipped++;
+        }
+      }
+    } catch (error) {
+      importErrors.push({
+        type: 'system',
+        message: `Failed to import prompt: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        promptId: importedPrompt.id,
+        promptTitle: importedPrompt.title
+      });
+      skipped++;
+    }
+  }
+
+  // Import team assignments if specified
+  if (targetTeamId && imported > 0) {
+    try {
+      const importedPromptIds = data.prompts.map(p => p.id);
+      await bulkAssignPromptsToTeam(importedPromptIds, targetTeamId, importedBy);
+    } catch (error) {
+      importErrors.push({
+        type: 'system',
+        message: `Failed to assign prompts to team: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    }
+  }
+
+  return {
+    success: importErrors.length === 0,
+    imported,
+    skipped,
+    errors: importErrors,
+    conflicts
+  };
+}
+
+// Bulk Operations Functions
+
+export interface BulkOperationResult {
+  successful: string[];
+  failed: { promptId: string; error: string }[];
+}
+
+export async function bulkDeletePrompts(
+  promptIds: string[],
+  deletedBy: string,
+  onProgress?: (completed: number, total: number, current?: string) => void
+): Promise<BulkOperationResult> {
+  const result: BulkOperationResult = {
+    successful: [],
+    failed: []
+  };
+
+  for (let i = 0; i < promptIds.length; i++) {
+    const promptId = promptIds[i];
+    
+    try {
+      onProgress?.(i, promptIds.length, promptId);
+      
+      // Get prompt data for logging
+      const prompt = await getPrompt(promptId);
+      if (!prompt) {
+        result.failed.push({
+          promptId,
+          error: 'Prompt not found'
+        });
+        continue;
+      }
+
+      // Check permissions
+      const currentUser = await getCurrentUser();
+      if (!canDeletePrompt(currentUser)) {
+        result.failed.push({
+          promptId,
+          error: 'Unauthorized: Only super users can delete prompts'
+        });
+        continue;
+      }
+
+      // Remove team assignments first
+      if (prompt.assignedTeams && prompt.assignedTeams.length > 0) {
+        for (const teamId of prompt.assignedTeams) {
+          await unassignPromptFromTeam(promptId, teamId, deletedBy);
+        }
+      }
+
+      // Delete the prompt
+      const promptRef = ref(database, `prompts/${promptId}`);
+      await remove(promptRef);
+
+      // Log the deletion
+      await logPromptUsage(promptId, deletedBy, prompt.teamId || null, 'deleted' as any);
+
+      result.successful.push(promptId);
+    } catch (error) {
+      result.failed.push({
+        promptId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  onProgress?.(promptIds.length, promptIds.length);
+  return result;
+}
+
+export async function bulkAddTagsToPrompts(
+  promptIds: string[],
+  tagsToAdd: string[],
+  modifiedBy: string,
+  onProgress?: (completed: number, total: number, current?: string) => void
+): Promise<BulkOperationResult> {
+  const result: BulkOperationResult = {
+    successful: [],
+    failed: []
+  };
+
+  // Normalize tags
+  const normalizedTags = tagsToAdd.map(tag => tag.toLowerCase().trim());
+
+  for (let i = 0; i < promptIds.length; i++) {
+    const promptId = promptIds[i];
+    
+    try {
+      onProgress?.(i, promptIds.length, promptId);
+      
+      const prompt = await getPrompt(promptId);
+      if (!prompt) {
+        result.failed.push({
+          promptId,
+          error: 'Prompt not found'
+        });
+        continue;
+      }
+
+      // Check permissions
+      const currentUser = await getCurrentUser();
+      if (!canEditPrompt(currentUser)) {
+        result.failed.push({
+          promptId,
+          error: 'Unauthorized: Only super users can edit prompts'
+        });
+        continue;
+      }
+
+      // Add new tags (avoid duplicates)
+      const currentTags = prompt.tags || [];
+      const currentTagsLower = currentTags.map(tag => tag.toLowerCase());
+      const newTags = normalizedTags.filter(tag => !currentTagsLower.includes(tag));
+      
+      if (newTags.length === 0) {
+        result.successful.push(promptId);
+        continue;
+      }
+
+      const updatedTags = [...currentTags, ...newTags];
+      
+      // Update the prompt
+      await updatePrompt(promptId, { tags: updatedTags }, modifiedBy);
+      
+      result.successful.push(promptId);
+    } catch (error) {
+      result.failed.push({
+        promptId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  onProgress?.(promptIds.length, promptIds.length);
+  return result;
+}
+
+export async function bulkRemoveTagsFromPrompts(
+  promptIds: string[],
+  tagsToRemove: string[],
+  modifiedBy: string,
+  onProgress?: (completed: number, total: number, current?: string) => void
+): Promise<BulkOperationResult> {
+  const result: BulkOperationResult = {
+    successful: [],
+    failed: []
+  };
+
+  // Normalize tags
+  const normalizedTagsToRemove = tagsToRemove.map(tag => tag.toLowerCase().trim());
+
+  for (let i = 0; i < promptIds.length; i++) {
+    const promptId = promptIds[i];
+    
+    try {
+      onProgress?.(i, promptIds.length, promptId);
+      
+      const prompt = await getPrompt(promptId);
+      if (!prompt) {
+        result.failed.push({
+          promptId,
+          error: 'Prompt not found'
+        });
+        continue;
+      }
+
+      // Check permissions
+      const currentUser = await getCurrentUser();
+      if (!canEditPrompt(currentUser)) {
+        result.failed.push({
+          promptId,
+          error: 'Unauthorized: Only super users can edit prompts'
+        });
+        continue;
+      }
+
+      // Remove specified tags
+      const currentTags = prompt.tags || [];
+      const updatedTags = currentTags.filter(tag => 
+        !normalizedTagsToRemove.includes(tag.toLowerCase())
+      );
+      
+      if (updatedTags.length === currentTags.length) {
+        // No tags were removed
+        result.successful.push(promptId);
+        continue;
+      }
+
+      // Update the prompt
+      await updatePrompt(promptId, { tags: updatedTags }, modifiedBy);
+      
+      result.successful.push(promptId);
+    } catch (error) {
+      result.failed.push({
+        promptId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  onProgress?.(promptIds.length, promptIds.length);
+  return result;
+}
+
+export async function bulkAssignPromptsToTeamWithProgress(
+  promptIds: string[],
+  teamId: string,
+  assignedBy: string,
+  permissions: { canEdit: boolean; canDelete: boolean; canReassign: boolean } = {
+    canEdit: false,
+    canDelete: false,
+    canReassign: false
+  },
+  onProgress?: (completed: number, total: number, current?: string) => void
+): Promise<BulkOperationResult> {
+  const result: BulkOperationResult = {
+    successful: [],
+    failed: []
+  };
+
+  for (let i = 0; i < promptIds.length; i++) {
+    const promptId = promptIds[i];
+    
+    try {
+      onProgress?.(i, promptIds.length, promptId);
+      
+      // Check if prompt exists
+      const prompt = await getPrompt(promptId);
+      if (!prompt) {
+        result.failed.push({
+          promptId,
+          error: 'Prompt not found'
+        });
+        continue;
+      }
+
+      // Check if already assigned
+      if (prompt.assignedTeams && prompt.assignedTeams.includes(teamId)) {
+        result.successful.push(promptId);
+        continue;
+      }
+
+      await assignPromptToTeam(promptId, teamId, assignedBy, permissions);
+      result.successful.push(promptId);
+    } catch (error) {
+      result.failed.push({
+        promptId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  onProgress?.(promptIds.length, promptIds.length);
+  return result;
+}
+
+export async function bulkUnassignPromptsFromTeamWithProgress(
+  promptIds: string[],
+  teamId: string,
+  unassignedBy: string,
+  onProgress?: (completed: number, total: number, current?: string) => void
+): Promise<BulkOperationResult> {
+  const result: BulkOperationResult = {
+    successful: [],
+    failed: []
+  };
+
+  for (let i = 0; i < promptIds.length; i++) {
+    const promptId = promptIds[i];
+    
+    try {
+      onProgress?.(i, promptIds.length, promptId);
+      
+      // Check if prompt exists
+      const prompt = await getPrompt(promptId);
+      if (!prompt) {
+        result.failed.push({
+          promptId,
+          error: 'Prompt not found'
+        });
+        continue;
+      }
+
+      // Check if assigned to this team
+      if (!prompt.assignedTeams || !prompt.assignedTeams.includes(teamId)) {
+        result.successful.push(promptId);
+        continue;
+      }
+
+      await unassignPromptFromTeam(promptId, teamId, unassignedBy);
+      result.successful.push(promptId);
+    } catch (error) {
+      result.failed.push({
+        promptId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  onProgress?.(promptIds.length, promptIds.length);
+  return result;
+}
+
+// Utility function to execute bulk operations with progress tracking
+export async function executeBulkOperation(
+  operation: {
+    type: 'delete' | 'add-tags' | 'remove-tags' | 'assign-team' | 'unassign-team';
+    data?: any;
+  },
+  promptIds: string[],
+  userId: string,
+  onProgress?: (completed: number, total: number, current?: string) => void
+): Promise<BulkOperationResult> {
+  switch (operation.type) {
+    case 'delete':
+      return await bulkDeletePrompts(promptIds, userId, onProgress);
+      
+    case 'add-tags':
+      if (!operation.data || !Array.isArray(operation.data)) {
+        throw new Error('Tags data is required for add-tags operation');
+      }
+      return await bulkAddTagsToPrompts(promptIds, operation.data, userId, onProgress);
+      
+    case 'remove-tags':
+      if (!operation.data || !Array.isArray(operation.data)) {
+        throw new Error('Tags data is required for remove-tags operation');
+      }
+      return await bulkRemoveTagsFromPrompts(promptIds, operation.data, userId, onProgress);
+      
+    case 'assign-team':
+      if (!operation.data) {
+        throw new Error('Team ID is required for assign-team operation');
+      }
+      return await bulkAssignPromptsToTeamWithProgress(
+        promptIds, 
+        operation.data, 
+        userId, 
+        { canEdit: false, canDelete: false, canReassign: false },
+        onProgress
+      );
+      
+    case 'unassign-team':
+      if (!operation.data) {
+        throw new Error('Team ID is required for unassign-team operation');
+      }
+      return await bulkUnassignPromptsFromTeamWithProgress(
+        promptIds, 
+        operation.data, 
+        userId, 
+        onProgress
+      );
+      
+    default:
+      throw new Error(`Unknown bulk operation type: ${operation.type}`);
+  }
 }

@@ -112,3 +112,54 @@ export interface TeamMember {
   role: 'admin' | 'member';
   joinedAt: string;
 }
+
+// Import/Export types
+export interface PromptExportData {
+  version: string;
+  exportedAt: string;
+  exportedBy: string;
+  prompts: Prompt[];
+  teamAssignments: TeamPromptAssignment[];
+  metadata: {
+    totalPrompts: number;
+    teamsIncluded: string[];
+    exportScope: 'global' | 'team' | 'selected';
+    selectedTeamId?: string;
+  };
+}
+
+export interface ImportResult {
+  success: boolean;
+  imported: number;
+  skipped: number;
+  errors: ImportError[];
+  conflicts: ConflictResolution[];
+}
+
+export interface ImportError {
+  type: 'validation' | 'permission' | 'conflict' | 'system';
+  message: string;
+  promptId?: string;
+  promptTitle?: string;
+}
+
+export interface ConflictResolution {
+  promptId: string;
+  existingPrompt: Prompt;
+  importedPrompt: Prompt;
+  resolution: 'skip' | 'overwrite' | 'create_new';
+  reason: string;
+}
+
+export interface ImportPreview {
+  totalPrompts: number;
+  newPrompts: Prompt[];
+  conflictingPrompts: ConflictResolution[];
+  invalidPrompts: ImportError[];
+  teamsToAssign: string[];
+  estimatedChanges: {
+    creates: number;
+    updates: number;
+    skips: number;
+  };
+}

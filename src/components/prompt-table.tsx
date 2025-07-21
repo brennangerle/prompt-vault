@@ -18,7 +18,7 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 
-import { Prompt, PromptUsageAnalytics } from "@/lib/types"
+import { Prompt, PromptUsageAnalytics, Team } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/alert"
 import { TagFilter } from "./tag-filter"
 import { PromptDeletionDialog } from "./prompt-deletion-dialog"
+import { BulkOperationsToolbar, BulkOperation, BulkOperationResult } from "./bulk-operations-toolbar"
 
 export interface PromptFilters {
   search: string
@@ -75,6 +76,7 @@ export interface PromptTableProps {
   onPromptDelete: (promptId: string) => void
   onPromptView: (prompt: Prompt) => void
   onBulkDelete?: (promptIds: string[]) => void
+  onBulkOperation?: (operation: BulkOperation, promptIds: string[]) => Promise<BulkOperationResult>
   sortConfig: SortConfig
   onSort: (field: keyof Prompt | 'usageCount' | 'lastUsed') => void
   filters: PromptFilters
@@ -82,6 +84,7 @@ export interface PromptTableProps {
   promptAnalytics?: Record<string, PromptUsageAnalytics>
   availableTags?: string[]
   availableUsers?: string[]
+  teams?: Team[]
   isLoading?: boolean
   pagination?: {
     page: number
@@ -101,6 +104,7 @@ export function PromptTable({
   onPromptDelete,
   onPromptView,
   onBulkDelete,
+  onBulkOperation,
   sortConfig,
   onSort,
   filters,
@@ -108,6 +112,7 @@ export function PromptTable({
   promptAnalytics = {},
   availableTags = [],
   availableUsers = [],
+  teams = [],
   isLoading = false,
   pagination
 }: PromptTableProps) {
@@ -292,6 +297,19 @@ export function PromptTable({
 
   return (
     <div className="space-y-4">
+      {/* Bulk Operations Toolbar */}
+      {onBulkOperation && (
+        <BulkOperationsToolbar
+          selectedPrompts={selectedPrompts}
+          prompts={prompts}
+          teams={teams}
+          availableTags={availableTags}
+          onBulkOperation={onBulkOperation}
+          onClearSelection={() => onPromptSelectAll(false)}
+          disabled={isLoading}
+        />
+      )}
+
       {/* Search and Filter Controls */}
       <div className="flex items-center space-x-4">
         <div className="relative flex-1">

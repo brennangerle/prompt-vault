@@ -46,7 +46,7 @@
   - Include rollback capability for accidental deletions
   - _Requirements: 1.3, 1.5, 5.3, 5.5_
 
-- [-] 7. Implement usage analytics and tracking
+- [x] 7. Implement usage analytics and tracking
 
   - Create PromptAnalytics component displaying usage statistics
   - Build usage tracking system that logs prompt interactions
@@ -54,7 +54,7 @@
   - Add filtering by date range and team for analytics
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 8. Create import/export functionality
+- [x] 8. Create import/export functionality
 
   - Build export dialog with format selection and scope options
   - Implement JSON export with prompt data and team assignments
