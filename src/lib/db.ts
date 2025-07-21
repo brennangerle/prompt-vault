@@ -415,6 +415,20 @@ export async function getPromptsByUser(userId: string): Promise<Prompt[]> {
   return [];
 }
 
+export async function getAllPrompts(): Promise<Prompt[]> {
+  const promptsRef = ref(database, 'prompts');
+  const snapshot = await get(promptsRef);
+  
+  if (snapshot.exists()) {
+    const promptsData = snapshot.val();
+    return Object.keys(promptsData).map(promptId => ({
+      id: promptId,
+      ...promptsData[promptId]
+    }));
+  }
+  return [];
+}
+
 export async function getPromptsBySharing(
   sharing: 'private' | 'team' | 'global',
   teamId?: string

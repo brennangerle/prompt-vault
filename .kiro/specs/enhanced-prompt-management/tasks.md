@@ -38,7 +38,7 @@
   - Add preview functionality for prompt content
   - _Requirements: 1.1, 1.2, 1.4, 2.1, 3.3_
 
-- [-] 6. Build prompt deletion with impact analysis
+- [x] 6. Build prompt deletion with impact analysis
 
   - Create confirmation dialog showing teams and users affected by deletion
   - Implement cascade deletion handling for team assignments
@@ -46,7 +46,7 @@
   - Include rollback capability for accidental deletions
   - _Requirements: 1.3, 1.5, 5.3, 5.5_
 
-- [ ] 7. Implement usage analytics and tracking
+- [-] 7. Implement usage analytics and tracking
 
   - Create PromptAnalytics component displaying usage statistics
   - Build usage tracking system that logs prompt interactions
