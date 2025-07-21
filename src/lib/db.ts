@@ -29,6 +29,7 @@ import type {
 } from './types';
 import { canEditPrompt, canDeletePrompt } from './permissions';
 import { getCurrentUser } from './auth';
+import { addUserToResendAudience } from './resend';
 
 // Database structure:
 // /users/{userId} -> User
@@ -48,6 +49,16 @@ export async function createUser(userData: Omit<User, 'id'>): Promise<string> {
   console.log('Creating email verification entry for user:', userData.email);
   await createEmailVerificationEntry(userData.email, newUserRef.key!, userData.teamId);
   
+  // Add user to Resend audience
+  if (process.env.RESEND_AUDIENCE_ID) {
+    try {
+      await addUserToResendAudience(userData.email);
+      console.log('User added to Resend audience');
+    } catch (error) {
+      console.error('Failed to add user to Resend audience:', error);
+    }
+  }
+  
   return newUserRef.key!;
 }
 
@@ -60,6 +71,16 @@ export async function createUserWithId(userId: string, userData: Omit<User, 'id'
   // Also create email verification entry for first-time login
   console.log('Creating email verification entry for user:', userData.email);
   await createEmailVerificationEntry(userData.email, userId, userData.teamId);
+  
+  // Add user to Resend audience
+  if (process.env.RESEND_AUDIENCE_ID) {
+    try {
+      await addUserToResendAudience(userData.email);
+      console.log('User added to Resend audience');
+    } catch (error) {
+      console.error('Failed to add user to Resend audience:', error);
+    }
+  }
   
   return userId;
 }
@@ -103,10 +124,27 @@ export async function deleteUser(userId: string): Promise<void> {
 
   const userRef = ref(database, `users/${userId}`);
   await remove(userRef);
+  console.log('User deleted with ID:', userId);
 
   const emailKey = user.email.replace(/[.@]/g, '_');
   const verificationRef = ref(database, `email-verification/${emailKey}`);
   await remove(verificationRef);
+}
+
+// Function to add user to Resend audience
+export async function addUserToResendAudience(email: string, firstName?: string, lastName?: string) {
+  if (!process.env.RESEND_AUDIENCE_ID) {
+    console.warn('RESEND_AUDIENCE_ID is not set. Skipping adding user to audience.');
+    return;
+  }
+
+  try {
+    await addUserToResendAudience(email, firstName, lastName);
+    console.log(`Successfully added ${email} to Resend audience.`);
+  } catch (error) {
+    console.error(`Failed to add user to Resend audience:`, error);
+    throw error;
+  }
 }
 
 // Team operations
@@ -138,12 +176,11 @@ export async function removeTeamMember(teamId: string, memberId: string): Promis
   await remove(memberRef);
 }
 
-// Team operations
-export async function createTeam(team: Omit<Team, 'id' | 'members'>): Promise<string> {
+export async function createTeam(teamData: Omit<Team, 'id' | 'members' | 'createdAt'>): Promise<string> {
   const teamsRef = ref(database, 'teams');
   const newTeamRef = push(teamsRef);
   await set(newTeamRef, {
-    ...team,
+    ...teamData,
     createdAt: new Date().toISOString()
   });
   return newTeamRef.key!;
@@ -578,7 +615,7 @@ export function subscribeToPrompts(
     }
   });
   return () => off(promptsRef, 'value', unsubscribe);
-}""
+}
 
 export function subscribeToTeamMembers(
   teamId: string,
