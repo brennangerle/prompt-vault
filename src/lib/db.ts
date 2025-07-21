@@ -872,6 +872,623 @@ export async function bulkUnassignPromptsFromTeam(
 }
 
 // Enhanced prompt queries with analytics
+// Tag-based search and filtering functions
+export async function searchPromptsByTags(
+  tags: string[],
+  options?: {
+    teamId?: string;
+    sharing?: 'private' | 'team' | 'global';
+    matchAll?: boolean; // true = AND logic, false = OR logic
+  }
+): Promise<Prompt[]> {
+  if (tags.length === 0) return [];
+
+  const promptsRef = ref(database, 'prompts');
+  const snapshot = await get(promptsRef);
+  
+  if (!snapshot.exists()) return [];
+
+  const promptsData = snapshot.val();
+  let prompts = Object.keys(promptsData).map(promptId => ({
+    id: promptId,
+    ...promptsData[promptId]
+  })) as Prompt[];
+
+  // Apply sharing filter
+  if (options?.sharing) {
+    prompts = prompts.filter(p => p.sharing === options.sharing);
+  }
+
+  // Apply team filter
+  if (options?.teamId) {
+    prompts = prompts.filter(p => 
+      p.assignedTeams?.includes(options.teamId!) || p.teamId === options.teamId
+    );
+  }
+
+  // Apply tag filter
+  const normalizedSearchTags = tags.map(tag => tag.toLowerCase().trim());
+  
+  prompts = prompts.filter(prompt => {
+    if (!prompt.tags || !Array.isArray(prompt.tags)) return false;
+    
+    const promptTags = prompt.tags.map(tag => tag.toLowerCase().trim());
+    
+    if (options?.matchAll) {
+      // AND logic: prompt must have ALL search tags
+      return normalizedSearchTags.every(searchTag => 
+        promptTags.some(promptTag => promptTag.includes(searchTag))
+      );
+    } else {
+      // OR logic: prompt must have ANY search tag
+      return normalizedSearchTags.some(searchTag => 
+        promptTags.some(promptTag => promptTag.includes(searchTag))
+      );
+    }
+  });
+
+  return prompts;
+}
+
+export async function getPromptsByTagPattern(
+  pattern: string,
+  options?: {
+    teamId?: string;
+    sharing?: 'private' | 'team' | 'global';
+    limit?: number;
+  }
+): Promise<Prompt[]> {
+  const promptsRef = ref(database, 'prompts');
+  const snapshot = await get(promptsRef);
+  
+  if (!snapshot.exists()) return [];
+
+  const promptsData = snapshot.val();
+  let prompts = Object.keys(promptsData).map(promptId => ({
+    id: promptId,
+    ...promptsData[promptId]
+  })) as Prompt[];
+
+  // Apply sharing filter
+  if (options?.sharing) {
+    prompts = prompts.filter(p => p.sharing === options.sharing);
+  }
+
+  // Apply team filter
+  if (options?.teamId) {
+    prompts = prompts.filter(p => 
+      p.assignedTeams?.includes(options.teamId!) || p.teamId === options.teamId
+    );
+  }
+
+  // Apply pattern matching
+  const patternLower = pattern.toLowerCase();
+  prompts = prompts.filter(prompt => {
+    if (!prompt.tags || !Array.isArray(prompt.tags)) return false;
+    
+    return prompt.tags.some(tag => 
+      tag.toLowerCase().includes(patternLower)
+    );
+  });
+
+  // Apply limit
+  if (options?.limit) {
+    prompts = prompts.slice(0, options.limit);
+  }
+
+  return prompts;
+}
+
+export async function getAllTags(options?: {
+  teamId?: string;
+  sharing?: 'private' | 'team' | 'global';
+  minUsageCount?: number;
+}): Promise<{ tag: string; count: number; prompts: string[] }[]> {
+  const promptsRef = ref(database, 'prompts');
+  const snapshot = await get(promptsRef);
+  
+  if (!snapshot.exists()) return [];
+
+  const promptsData = snapshot.val();
+  let prompts = Object.keys(promptsData).map(promptId => ({
+    id: promptId,
+    ...promptsData[promptId]
+  })) as Prompt[];
+
+  // Apply filters
+  if (options?.sharing) {
+    prompts = prompts.filter(p => p.sharing === options.sharing);
+  }
+
+  if (options?.teamId) {
+    prompts = prompts.filter(p => 
+      p.assignedTeams?.includes(options.teamId!) || p.teamId === options.teamId
+    );
+  }
+
+  // Collect and count tags
+  const tagMap = new Map<string, { count: number; prompts: string[] }>();
+  
+  prompts.forEach(prompt => {
+    if (prompt.tags && Array.isArray(prompt.tags)) {
+      prompt.tags.forEach(tag => {
+        const normalizedTag = tag.toLowerCase().trim();
+        if (!tagMap.has(normalizedTag)) {
+          tagMap.set(normalizedTag, { count: 0, prompts: [] });
+        }
+        const tagData = tagMap.get(normalizedTag)!;
+        tagData.count++;
+        tagData.prompts.push(prompt.id);
+      });
+    }
+  });
+
+  // Convert to array and apply minimum usage filter
+  let tagArray = Array.from(tagMap.entries()).map(([tag, data]) => ({
+    tag,
+    count: data.count,
+    prompts: data.prompts
+  }));
+
+  if (options?.minUsageCount) {
+    tagArray = tagArray.filter(tag => tag.count >= options.minUsageCount);
+  }
+
+  // Sort by count descending
+  return tagArray.sort((a, b) => b.count - a.count);
+}
+
+// Prompt deletion impact analysis functions
+export interface PromptDeletionImpact {
+  promptId: string;
+  prompt: Prompt;
+  affectedTeams: {
+    teamId: string;
+    teamName: string;
+    memberCount: number;
+    assignment: TeamPromptAssignment;
+  }[];
+  affectedUsers: {
+    userId: string;
+    userEmail: string;
+    teamId?: string;
+    usageCount: number;
+    lastUsed?: string;
+  }[];
+  usageAnalytics: PromptUsageAnalytics;
+  totalImpactScore: number; // Higher score = more impact
+  canDelete: boolean;
+  warnings: string[];
+}
+
+export async function analyzePromptDeletionImpact(promptId: string): Promise<PromptDeletionImpact | null> {
+  // Get the prompt
+  const prompt = await getPrompt(promptId);
+  if (!prompt) return null;
+
+  // Get team assignments
+  const teamAssignments = await getPromptTeamAssignments(promptId);
+  
+  // Get usage analytics
+  const usageAnalytics = await getPromptUsageAnalytics(promptId);
+  
+  // Get all teams and users for detailed impact analysis
+  const allTeams = await getAllTeams();
+  const allUsers = await getAllUsers();
+  
+  // Analyze affected teams
+  const affectedTeams = await Promise.all(
+    teamAssignments.map(async (assignment) => {
+      const team = allTeams.find(t => t.id === assignment.teamId);
+      return {
+        teamId: assignment.teamId,
+        teamName: team?.name || 'Unknown Team',
+        memberCount: team?.members.length || 0,
+        assignment
+      };
+    })
+  );
+
+  // Analyze affected users based on usage logs
+  const usageLogs = await getPromptUsageLogs(promptId);
+  const userUsageMap = new Map<string, { count: number; lastUsed?: string }>();
+  
+  usageLogs.forEach(log => {
+    if (!userUsageMap.has(log.userId)) {
+      userUsageMap.set(log.userId, { count: 0 });
+    }
+    const userData = userUsageMap.get(log.userId)!;
+    userData.count++;
+    if (!userData.lastUsed || log.timestamp > userData.lastUsed) {
+      userData.lastUsed = log.timestamp;
+    }
+  });
+
+  const affectedUsers = Array.from(userUsageMap.entries()).map(([userId, usage]) => {
+    const user = allUsers.find(u => u.id === userId);
+    return {
+      userId,
+      userEmail: user?.email || 'Unknown User',
+      teamId: user?.teamId,
+      usageCount: usage.count,
+      lastUsed: usage.lastUsed
+    };
+  }).filter(user => user.usageCount > 0);
+
+  // Calculate impact score
+  let impactScore = 0;
+  impactScore += affectedTeams.length * 10; // 10 points per affected team
+  impactScore += affectedUsers.length * 5; // 5 points per affected user
+  impactScore += (usageAnalytics.totalUsage || 0) * 0.1; // 0.1 points per usage
+  
+  // Recent usage increases impact
+  if (usageAnalytics.lastUsed) {
+    const daysSinceLastUse = (Date.now() - new Date(usageAnalytics.lastUsed).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceLastUse < 7) impactScore += 20; // Recently used
+    else if (daysSinceLastUse < 30) impactScore += 10; // Used this month
+  }
+
+  // Generate warnings
+  const warnings: string[] = [];
+  
+  if (affectedTeams.length > 0) {
+    warnings.push(`This prompt is assigned to ${affectedTeams.length} team(s)`);
+  }
+  
+  if (usageAnalytics.totalUsage > 50) {
+    warnings.push(`This prompt has high usage (${usageAnalytics.totalUsage} times)`);
+  }
+  
+  if (usageAnalytics.lastUsed) {
+    const daysSinceLastUse = (Date.now() - new Date(usageAnalytics.lastUsed).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceLastUse < 7) {
+      warnings.push('This prompt was used recently (within 7 days)');
+    }
+  }
+
+  if (prompt.sharing === 'global') {
+    warnings.push('This is a global prompt visible to all users');
+  }
+
+  // Determine if deletion is allowed (super users can always delete, but we show warnings)
+  const canDelete = true; // Super users have full deletion rights
+
+  return {
+    promptId,
+    prompt,
+    affectedTeams,
+    affectedUsers,
+    usageAnalytics,
+    totalImpactScore: impactScore,
+    canDelete,
+    warnings
+  };
+}
+
+export async function analyzeBulkPromptDeletionImpact(promptIds: string[]): Promise<{
+  impacts: PromptDeletionImpact[];
+  totalImpactScore: number;
+  totalAffectedTeams: number;
+  totalAffectedUsers: number;
+  highImpactPrompts: string[];
+  canDeleteAll: boolean;
+  warnings: string[];
+}> {
+  const impacts = await Promise.all(
+    promptIds.map(id => analyzePromptDeletionImpact(id))
+  );
+  
+  const validImpacts = impacts.filter(Boolean) as PromptDeletionImpact[];
+  
+  const totalImpactScore = validImpacts.reduce((sum, impact) => sum + impact.totalImpactScore, 0);
+  
+  const allAffectedTeams = new Set<string>();
+  const allAffectedUsers = new Set<string>();
+  
+  validImpacts.forEach(impact => {
+    impact.affectedTeams.forEach(team => allAffectedTeams.add(team.teamId));
+    impact.affectedUsers.forEach(user => allAffectedUsers.add(user.userId));
+  });
+  
+  const highImpactPrompts = validImpacts
+    .filter(impact => impact.totalImpactScore > 50)
+    .map(impact => impact.promptId);
+  
+  const canDeleteAll = validImpacts.every(impact => impact.canDelete);
+  
+  const warnings: string[] = [];
+  if (validImpacts.length !== promptIds.length) {
+    warnings.push(`${promptIds.length - validImpacts.length} prompt(s) not found`);
+  }
+  
+  if (highImpactPrompts.length > 0) {
+    warnings.push(`${highImpactPrompts.length} prompt(s) have high impact scores`);
+  }
+  
+  if (allAffectedTeams.size > 0) {
+    warnings.push(`${allAffectedTeams.size} team(s) will be affected`);
+  }
+  
+  const globalPrompts = validImpacts.filter(impact => impact.prompt.sharing === 'global');
+  if (globalPrompts.length > 0) {
+    warnings.push(`${globalPrompts.length} global prompt(s) will be deleted`);
+  }
+
+  return {
+    impacts: validImpacts,
+    totalImpactScore,
+    totalAffectedTeams: allAffectedTeams.size,
+    totalAffectedUsers: allAffectedUsers.size,
+    highImpactPrompts,
+    canDeleteAll,
+    warnings
+  };
+}
+
+// Enhanced deletion functions with cascade handling
+export async function deletePromptWithCascade(promptId: string, deletedBy?: string): Promise<void> {
+  // Check if current user has permission to delete prompts
+  const currentUser = await getCurrentUser();
+  if (!canDeletePrompt(currentUser)) {
+    throw new Error('Unauthorized: Only the prompt keeper can delete prompts');
+  }
+
+  const userId = deletedBy || currentUser?.id || 'system';
+  
+  // Get prompt data before deletion for logging
+  const prompt = await getPrompt(promptId);
+  if (!prompt) {
+    throw new Error('Prompt not found');
+  }
+
+  // Remove all team assignments
+  const teamAssignments = await getPromptTeamAssignments(promptId);
+  await Promise.all(
+    teamAssignments.map(assignment => 
+      unassignPromptFromTeam(promptId, assignment.teamId, userId)
+    )
+  );
+
+  // Log the deletion before removing the prompt
+  await logPromptUsage(promptId, userId, prompt.teamId || null, 'deleted' as any);
+  
+  // Create deletion backup for potential rollback
+  await createDeletionBackup(promptId, prompt, userId);
+  
+  // Delete the prompt
+  const promptRef = ref(database, `prompts/${promptId}`);
+  await remove(promptRef);
+}
+
+export async function bulkDeletePromptsWithCascade(promptIds: string[], deletedBy?: string): Promise<{
+  successful: string[];
+  failed: { promptId: string; error: string }[];
+}> {
+  const currentUser = await getCurrentUser();
+  if (!canDeletePrompt(currentUser)) {
+    throw new Error('Unauthorized: Only the prompt keeper can delete prompts');
+  }
+
+  const userId = deletedBy || currentUser?.id || 'system';
+  const successful: string[] = [];
+  const failed: { promptId: string; error: string }[] = [];
+
+  // Process deletions sequentially to avoid overwhelming the database
+  for (const promptId of promptIds) {
+    try {
+      await deletePromptWithCascade(promptId, userId);
+      successful.push(promptId);
+    } catch (error) {
+      failed.push({
+        promptId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  return { successful, failed };
+}
+
+// Rollback functionality
+interface DeletionBackup {
+  promptId: string;
+  promptData: Prompt;
+  teamAssignments: TeamPromptAssignment[];
+  deletedBy: string;
+  deletedAt: string;
+}
+
+export async function createDeletionBackup(
+  promptId: string, 
+  promptData: Prompt, 
+  deletedBy: string
+): Promise<void> {
+  const teamAssignments = await getPromptTeamAssignments(promptId);
+  
+  const backup: DeletionBackup = {
+    promptId,
+    promptData,
+    teamAssignments,
+    deletedBy,
+    deletedAt: new Date().toISOString()
+  };
+
+  const backupRef = ref(database, `deletion-backups/${promptId}`);
+  await set(backupRef, backup);
+}
+
+export async function getDeletionBackup(promptId: string): Promise<DeletionBackup | null> {
+  const backupRef = ref(database, `deletion-backups/${promptId}`);
+  const snapshot = await get(backupRef);
+  
+  if (snapshot.exists()) {
+    return snapshot.val() as DeletionBackup;
+  }
+  
+  return null;
+}
+
+export async function restoreDeletedPrompt(promptId: string, restoredBy?: string): Promise<void> {
+  const currentUser = await getCurrentUser();
+  if (!canEditPrompt(currentUser)) {
+    throw new Error('Unauthorized: Only the prompt keeper can restore prompts');
+  }
+
+  const backup = await getDeletionBackup(promptId);
+  if (!backup) {
+    throw new Error('No backup found for this prompt');
+  }
+
+  const userId = restoredBy || currentUser?.id || 'system';
+  
+  // Restore the prompt
+  const promptRef = ref(database, `prompts/${promptId}`);
+  const restoredPrompt = {
+    ...backup.promptData,
+    lastModified: new Date().toISOString(),
+    modifiedBy: userId,
+    metadata: {
+      ...backup.promptData.metadata,
+      version: (backup.promptData.metadata?.version || 1) + 1,
+      changelog: [
+        ...(backup.promptData.metadata?.changelog || []),
+        {
+          timestamp: new Date().toISOString(),
+          userId,
+          action: 'restored' as const,
+          changes: { restored: { old: null, new: true } }
+        }
+      ]
+    }
+  };
+  
+  await set(promptRef, restoredPrompt);
+  
+  // Restore team assignments
+  await Promise.all(
+    backup.teamAssignments.map(assignment =>
+      assignPromptToTeam(promptId, assignment.teamId, userId, assignment.permissions)
+    )
+  );
+  
+  // Log the restoration
+  await logPromptUsage(promptId, userId, backup.promptData.teamId || null, 'restored' as any);
+  
+  // Remove the backup
+  const backupRef = ref(database, `deletion-backups/${promptId}`);
+  await remove(backupRef);
+}
+
+export async function listDeletionBackups(limit?: number): Promise<DeletionBackup[]> {
+  const backupsRef = ref(database, 'deletion-backups');
+  const snapshot = await get(backupsRef);
+  
+  if (!snapshot.exists()) return [];
+  
+  const backupsData = snapshot.val();
+  let backups = Object.values(backupsData) as DeletionBackup[];
+  
+  // Sort by deletion date descending
+  backups = backups.sort((a, b) => 
+    new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime()
+  );
+  
+  if (limit) {
+    backups = backups.slice(0, limit);
+  }
+  
+  return backups;
+}
+
+export async function cleanupOldDeletionBackups(olderThanDays: number = 30): Promise<number> {
+  const backups = await listDeletionBackups();
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+  
+  const oldBackups = backups.filter(backup => 
+    new Date(backup.deletedAt) < cutoffDate
+  );
+  
+  await Promise.all(
+    oldBackups.map(backup => {
+      const backupRef = ref(database, `deletion-backups/${backup.promptId}`);
+      return remove(backupRef);
+    })
+  );
+  
+  return oldBackups.length;
+}
+
+export async function getTagSuggestions(
+  existingTags: string[],
+  options?: {
+    teamId?: string;
+    sharing?: 'private' | 'team' | 'global';
+    limit?: number;
+  }
+): Promise<string[]> {
+  if (existingTags.length === 0) return [];
+
+  const promptsRef = ref(database, 'prompts');
+  const snapshot = await get(promptsRef);
+  
+  if (!snapshot.exists()) return [];
+
+  const promptsData = snapshot.val();
+  let prompts = Object.keys(promptsData).map(promptId => ({
+    id: promptId,
+    ...promptsData[promptId]
+  })) as Prompt[];
+
+  // Apply filters
+  if (options?.sharing) {
+    prompts = prompts.filter(p => p.sharing === options.sharing);
+  }
+
+  if (options?.teamId) {
+    prompts = prompts.filter(p => 
+      p.assignedTeams?.includes(options.teamId!) || p.teamId === options.teamId
+    );
+  }
+
+  // Find prompts that contain any of the existing tags
+  const normalizedExistingTags = existingTags.map(tag => tag.toLowerCase().trim());
+  const relatedPrompts = prompts.filter(prompt => {
+    if (!prompt.tags || !Array.isArray(prompt.tags)) return false;
+    
+    const promptTags = prompt.tags.map(tag => tag.toLowerCase().trim());
+    return normalizedExistingTags.some(existingTag => 
+      promptTags.includes(existingTag)
+    );
+  });
+
+  // Collect all tags from related prompts
+  const suggestionMap = new Map<string, number>();
+  
+  relatedPrompts.forEach(prompt => {
+    if (prompt.tags && Array.isArray(prompt.tags)) {
+      prompt.tags.forEach(tag => {
+        const normalizedTag = tag.toLowerCase().trim();
+        if (normalizedTag && !normalizedExistingTags.includes(normalizedTag)) {
+          suggestionMap.set(normalizedTag, (suggestionMap.get(normalizedTag) || 0) + 1);
+        }
+      });
+    }
+  });
+
+  // Convert to array and sort by frequency
+  let suggestions = Array.from(suggestionMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([tag]) => tag);
+
+  // Apply limit
+  if (options?.limit) {
+    suggestions = suggestions.slice(0, options.limit);
+  }
+
+  return suggestions;
+}
+
 export async function getPromptsWithAnalytics(
   filters?: {
     teamId?: string;

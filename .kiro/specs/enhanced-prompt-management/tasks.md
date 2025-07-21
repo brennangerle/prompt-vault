@@ -14,7 +14,7 @@
   - Add loading states and error handling for team data
   - _Requirements: 3.1, 3.2, 4.1_
 
-- [-] 3. Build enhanced prompt table component
+- [x] 3. Build enhanced prompt table component
 
   - Create PromptTable component with sortable columns and pagination
   - Implement multi-select functionality for bulk operations
@@ -22,7 +22,7 @@
   - Include prompt usage statistics display in table rows
   - _Requirements: 4.1, 4.2, 4.3, 5.1, 5.2_
 
-- [ ] 4. Implement tag management system
+- [x] 4. Implement tag management system
 
   - Create TagManager component for adding/removing tags
   - Build tag input with autocomplete functionality
@@ -30,7 +30,7 @@
   - Add tag validation and duplicate prevention
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 5. Create enhanced prompt editing dialog
+- [x] 5. Create enhanced prompt editing dialog
 
   - Extend existing EditPromptDialog with new fields and tag management
   - Add team assignment interface within the edit dialog
@@ -38,7 +38,7 @@
   - Add preview functionality for prompt content
   - _Requirements: 1.1, 1.2, 1.4, 2.1, 3.3_
 
-- [ ] 6. Build prompt deletion with impact analysis
+- [-] 6. Build prompt deletion with impact analysis
 
   - Create confirmation dialog showing teams and users affected by deletion
   - Implement cascade deletion handling for team assignments

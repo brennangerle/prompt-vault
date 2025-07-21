@@ -68,7 +68,7 @@ export function NewPromptDialog({ children, onAddPrompt }: NewPromptDialogProps)
       onAddPrompt({
         content: data.content,
         title: metadata.title,
-        tags: metadata.tags,
+        tags: Array.isArray(metadata.tags) ? metadata.tags : [],
       });
       toast({
         title: 'Prompt Added',

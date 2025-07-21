@@ -61,6 +61,36 @@ export interface TeamPromptAssignment {
   };
 }
 
+export interface PromptDeletionImpact {
+  promptId: string;
+  prompt: Prompt;
+  affectedTeams: {
+    teamId: string;
+    teamName: string;
+    memberCount: number;
+    assignment: TeamPromptAssignment;
+  }[];
+  affectedUsers: {
+    userId: string;
+    userEmail: string;
+    teamId?: string;
+    usageCount: number;
+    lastUsed?: string;
+  }[];
+  usageAnalytics: PromptUsageAnalytics;
+  totalImpactScore: number;
+  canDelete: boolean;
+  warnings: string[];
+}
+
+export interface DeletionBackup {
+  promptId: string;
+  promptData: Prompt;
+  teamAssignments: TeamPromptAssignment[];
+  deletedBy: string;
+  deletedAt: string;
+}
+
 export interface User {
   id: string;
   email: string;

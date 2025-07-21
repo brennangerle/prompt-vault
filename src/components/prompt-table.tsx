@@ -12,8 +12,9 @@ import {
   Eye,
   Calendar,
   Users,
-  Tag,
-  MoreHorizontal
+  MoreHorizontal,
+  CheckCircle,
+  XCircle
 } from "lucide-react"
 import { format } from "date-fns"
 
@@ -43,6 +44,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert"
+import { TagFilter } from "./tag-filter"
+import { PromptDeletionDialog } from "./prompt-deletion-dialog"
 
 export interface PromptFilters {
   search: string
@@ -66,6 +74,7 @@ export interface PromptTableProps {
   onPromptEdit: (prompt: Prompt) => void
   onPromptDelete: (promptId: string) => void
   onPromptView: (prompt: Prompt) => void
+  onBulkDelete?: (promptIds: string[]) => void
   sortConfig: SortConfig
   onSort: (field: keyof Prompt | 'usageCount' | 'lastUsed') => void
   filters: PromptFilters
@@ -91,6 +100,7 @@ export function PromptTable({
   onPromptEdit,
   onPromptDelete,
   onPromptView,
+  onBulkDelete,
   sortConfig,
   onSort,
   filters,
@@ -102,6 +112,12 @@ export function PromptTable({
   pagination
 }: PromptTableProps) {
   const [showFilters, setShowFilters] = useState(false)
+  const [deletionDialogOpen, setDeletionDialogOpen] = useState(false)
+  const [promptsToDelete, setPromptsToDelete] = useState<string[]>([])
+  const [deletionResults, setDeletionResults] = useState<{
+    successful: string[]
+    failed: { promptId: string; error: string }[]
+  } | null>(null)
 
   // Filter and sort prompts
   const filteredAndSortedPrompts = useMemo(() => {
@@ -116,12 +132,14 @@ export function PromptTable({
         if (!matchesSearch) return false
       }
 
-      // Tags filter
+      // Tags filter - improved to handle case-insensitive matching
       if (filters.tags.length > 0) {
-        const hasMatchingTag = filters.tags.some(filterTag => 
-          prompt.tags.includes(filterTag)
-        )
-        if (!hasMatchingTag) return false
+        const promptTags = (prompt.tags || []).map(tag => tag.toLowerCase());
+        const filterTags = filters.tags.map(tag => tag.toLowerCase());
+        const hasMatchingTag = filterTags.some(filterTag => 
+          promptTags.includes(filterTag)
+        );
+        if (!hasMatchingTag) return false;
       }
 
       // Sharing filter
@@ -202,6 +220,37 @@ export function PromptTable({
     onSort(field)
   }
 
+  const handleSingleDelete = (promptId: string) => {
+    setPromptsToDelete([promptId])
+    setDeletionDialogOpen(true)
+  }
+
+  const handleBulkDelete = () => {
+    if (selectedPrompts.length > 0) {
+      setPromptsToDelete(selectedPrompts)
+      setDeletionDialogOpen(true)
+    }
+  }
+
+  const handleDeletionComplete = (successful: string[], failed: { promptId: string; error: string }[]) => {
+    setDeletionResults({ successful, failed })
+    
+    // Call the original delete handlers for successful deletions
+    successful.forEach(promptId => {
+      onPromptDelete(promptId)
+    })
+    
+    // Clear selection after bulk delete
+    if (successful.length > 0) {
+      onPromptSelectAll(false)
+    }
+    
+    // Show results briefly
+    setTimeout(() => {
+      setDeletionResults(null)
+    }, 5000)
+  }
+
   const SortableHeader = ({ 
     field, 
     children, 
@@ -254,6 +303,19 @@ export function PromptTable({
             className="pl-10"
           />
         </div>
+        
+        {/* Bulk Actions */}
+        {selectedPrompts.length > 0 && onBulkDelete && (
+          <Button
+            variant="destructive"
+            onClick={handleBulkDelete}
+            className="flex items-center space-x-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>Delete {selectedPrompts.length}</span>
+          </Button>
+        )}
+        
         <Button
           variant="outline"
           onClick={() => setShowFilters(!showFilters)}
@@ -280,41 +342,12 @@ export function PromptTable({
           {/* Tags Filter */}
           <div>
             <label className="text-sm font-medium mb-2 block">Tags</label>
-            <Select
-              value={filters.tags.length > 0 ? filters.tags[0] : ""}
-              onValueChange={(value) => {
-                if (value && !filters.tags.includes(value)) {
-                  onFiltersChange({ ...filters, tags: [...filters.tags, value] })
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select tags..." />
-              </SelectTrigger>
-              <SelectContent>
-                {availableTags.map(tag => (
-                  <SelectItem key={tag} value={tag}>{tag}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {filters.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {filters.tags.map(tag => (
-                  <Badge key={tag} variant="secondary" className="text-xs">
-                    {tag}
-                    <button
-                      onClick={() => onFiltersChange({ 
-                        ...filters, 
-                        tags: filters.tags.filter(t => t !== tag) 
-                      })}
-                      className="ml-1 hover:text-destructive"
-                    >
-                      ×
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
+            <TagFilter
+              selectedTags={filters.tags}
+              onTagsChange={(tags) => onFiltersChange({ ...filters, tags })}
+              placeholder="Filter by tags..."
+              maxTags={5}
+            />
           </div>
 
           {/* Sharing Filter */}
@@ -398,6 +431,35 @@ export function PromptTable({
             </Select>
           </div>
         </div>
+      )}
+
+      {/* Deletion Results */}
+      {deletionResults && (
+        <Alert variant={deletionResults.failed.length > 0 ? "destructive" : "default"}>
+          {deletionResults.failed.length > 0 ? (
+            <XCircle className="h-4 w-4" />
+          ) : (
+            <CheckCircle className="h-4 w-4" />
+          )}
+          <AlertTitle>Deletion Complete</AlertTitle>
+          <AlertDescription>
+            {deletionResults.successful.length > 0 && (
+              <div>Successfully deleted {deletionResults.successful.length} prompt(s).</div>
+            )}
+            {deletionResults.failed.length > 0 && (
+              <div className="mt-2">
+                Failed to delete {deletionResults.failed.length} prompt(s):
+                <ul className="list-disc list-inside mt-1">
+                  {deletionResults.failed.map((failure, index) => (
+                    <li key={index} className="text-sm">
+                      {failure.error}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Results Summary */}
@@ -568,7 +630,7 @@ export function PromptTable({
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem 
-                            onClick={() => onPromptDelete(prompt.id)}
+                            onClick={() => handleSingleDelete(prompt.id)}
                             className="text-destructive"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
@@ -637,6 +699,15 @@ export function PromptTable({
           </div>
         </div>
       )}
+
+      {/* Deletion Dialog */}
+      <PromptDeletionDialog
+        open={deletionDialogOpen}
+        onOpenChange={setDeletionDialogOpen}
+        promptIds={promptsToDelete}
+        prompts={prompts.filter(p => promptsToDelete.includes(p.id))}
+        onDeleteComplete={handleDeletionComplete}
+      />
     </div>
   )
 }
