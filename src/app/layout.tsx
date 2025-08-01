@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/toaster"
 import { Analytics } from "@vercel/analytics/next"
 import { GoogleAnalytics } from "@/components/GoogleAnalytics"
 import { UserProvider } from "@/lib/user-context"
-import { RevenueCatInitializer } from "@/lib/revenuecat"
 
 export const metadata: Metadata = {
   title: 'Prompt Keeper: Your Prompt Repository & Sharing App',
@@ -33,7 +32,6 @@ export default function RootLayout({
       </head>
       <body className={cn("font-body antialiased")} suppressHydrationWarning>
         <UserProvider>
-          <RevenueCatInitializer />
           {children}
         </UserProvider>
         <Toaster />
