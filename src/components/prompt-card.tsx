@@ -82,8 +82,8 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
   };
 
   // Check if current user can edit/delete prompts
-  const canEdit = canEditPrompt(currentUser);
-  const canDelete = canDeletePrompt(currentUser);
+  const canEdit = canEditPrompt(currentUser, prompt);
+  const canDelete = canDeletePrompt(currentUser, prompt);
 
   return (
     <Card className="w-full group transition-all-smooth hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 border-0 glass-light">

@@ -29,7 +29,7 @@ import type {
 } from './types';
 import { canEditPrompt, canDeletePrompt } from './permissions';
 import { getCurrentUser } from './auth';
-import { addUserToResendAudience } from './resend';
+import { addUserToResendAudience } from './resend-server';
 
 // Database structure:
 // /users/{userId} -> User
@@ -131,21 +131,7 @@ export async function deleteUser(userId: string): Promise<void> {
   await remove(verificationRef);
 }
 
-// Function to add user to Resend audience
-export async function addUserToResendAudience(email: string, firstName?: string, lastName?: string) {
-  if (!process.env.RESEND_AUDIENCE_ID) {
-    console.warn('RESEND_AUDIENCE_ID is not set. Skipping adding user to audience.');
-    return;
-  }
-
-  try {
-    await addUserToResendAudience(email, firstName, lastName);
-    console.log(`Successfully added ${email} to Resend audience.`);
-  } catch (error) {
-    console.error(`Failed to add user to Resend audience:`, error);
-    throw error;
-  }
-}
+// Function to add user to Resend audience - imported from resend.ts
 
 // Team operations
 export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
@@ -360,7 +346,13 @@ export async function createPrompt(prompt: Omit<Prompt, 'id'>): Promise<string> 
       }]
     }
   };
-  await set(newPromptRef, promptWithTimestamp);
+  
+  // Remove any undefined values before saving to Firebase
+  const cleanedPrompt = JSON.parse(JSON.stringify(promptWithTimestamp, (key, value) => 
+    value === undefined ? null : value
+  ));
+  
+  await set(newPromptRef, cleanedPrompt);
   
   // Log the creation
   await logPromptUsage(newPromptRef.key!, prompt.createdBy || 'system', prompt.teamId || null, 'created');
@@ -379,17 +371,19 @@ export async function getPrompt(promptId: string): Promise<Prompt | null> {
 }
 
 export async function updatePrompt(promptId: string, updates: Partial<Prompt>, userId?: string): Promise<void> {
-  // Check if current user has permission to edit prompts
   const currentUser = await getCurrentUser();
-  if (!canEditPrompt(currentUser)) {
-    throw new Error('Unauthorized: Only the prompt keeper can edit prompts');
-  }
-
   const promptRef = ref(database, `prompts/${promptId}`);
   const snapshot = await get(promptRef);
   
   if (snapshot.exists()) {
     const currentData = snapshot.val();
+    const prompt = { id: promptId, ...currentData };
+    
+    // Check if current user has permission to edit this specific prompt
+    if (!canEditPrompt(currentUser, prompt)) {
+      throw new Error('Unauthorized: Only the prompt keeper can edit prompts');
+    }
+    
     const now = new Date().toISOString();
     const modifiedBy = userId || currentUser?.id || 'system';
     
@@ -397,7 +391,9 @@ export async function updatePrompt(promptId: string, updates: Partial<Prompt>, u
     const changes: Record<string, { old: any; new: any }> = {};
     Object.keys(updates).forEach(key => {
       if (currentData[key] !== updates[key as keyof Prompt]) {
-        changes[key] = { old: currentData[key], new: updates[key as keyof Prompt] };
+        const oldValue = currentData[key] ?? null; // Convert undefined to null
+        const newValue = updates[key as keyof Prompt] ?? null; // Convert undefined to null
+        changes[key] = { old: oldValue, new: newValue };
       }
     });
     
@@ -424,7 +420,12 @@ export async function updatePrompt(promptId: string, updates: Partial<Prompt>, u
       metadata: newMetadata
     };
     
-    await set(promptRef, updatedPrompt);
+    // Remove any undefined values before saving to Firebase
+    const cleanedPrompt = JSON.parse(JSON.stringify(updatedPrompt, (key, value) => 
+      value === undefined ? null : value
+    ));
+    
+    await set(promptRef, cleanedPrompt);
     
     // Log the update
     await logPromptUsage(promptId, modifiedBy, currentData.teamId || null, 'updated');
@@ -432,14 +433,21 @@ export async function updatePrompt(promptId: string, updates: Partial<Prompt>, u
 }
 
 export async function deletePrompt(promptId: string): Promise<void> {
-  // Check if current user has permission to delete prompts
   const currentUser = await getCurrentUser();
-  if (!canDeletePrompt(currentUser)) {
-    throw new Error('Unauthorized: Only the prompt keeper can delete prompts');
-  }
-
   const promptRef = ref(database, `prompts/${promptId}`);
-  await remove(promptRef);
+  const snapshot = await get(promptRef);
+  
+  if (snapshot.exists()) {
+    const currentData = snapshot.val();
+    const prompt = { id: promptId, ...currentData };
+    
+    // Check if current user has permission to delete this specific prompt
+    if (!canDeletePrompt(currentUser, prompt)) {
+      throw new Error('Unauthorized: Only the prompt keeper can delete prompts');
+    }
+    
+    await remove(promptRef);
+  }
 }
 
 export async function getPromptsByUser(userId: string): Promise<Prompt[]> {
@@ -1283,18 +1291,18 @@ export async function analyzeBulkPromptDeletionImpact(promptIds: string[]): Prom
 
 // Enhanced deletion functions with cascade handling
 export async function deletePromptWithCascade(promptId: string, deletedBy?: string): Promise<void> {
-  // Check if current user has permission to delete prompts
   const currentUser = await getCurrentUser();
-  if (!canDeletePrompt(currentUser)) {
-    throw new Error('Unauthorized: Only the prompt keeper can delete prompts');
-  }
-
   const userId = deletedBy || currentUser?.id || 'system';
   
   // Get prompt data before deletion for logging
   const prompt = await getPrompt(promptId);
   if (!prompt) {
     throw new Error('Prompt not found');
+  }
+
+  // Check if current user has permission to delete this specific prompt
+  if (!canDeletePrompt(currentUser, prompt)) {
+    throw new Error('Unauthorized: Only the prompt keeper can delete prompts');
   }
 
   // Remove all team assignments
@@ -1321,10 +1329,6 @@ export async function bulkDeletePromptsWithCascade(promptIds: string[], deletedB
   failed: { promptId: string; error: string }[];
 }> {
   const currentUser = await getCurrentUser();
-  if (!canDeletePrompt(currentUser)) {
-    throw new Error('Unauthorized: Only the prompt keeper can delete prompts');
-  }
-
   const userId = deletedBy || currentUser?.id || 'system';
   const successful: string[] = [];
   const failed: { promptId: string; error: string }[] = [];
@@ -1332,6 +1336,18 @@ export async function bulkDeletePromptsWithCascade(promptIds: string[], deletedB
   // Process deletions sequentially to avoid overwhelming the database
   for (const promptId of promptIds) {
     try {
+      const prompt = await getPrompt(promptId);
+      if (!prompt) {
+        failed.push({ promptId, error: 'Prompt not found' });
+        continue;
+      }
+
+      // Check if current user has permission to delete this specific prompt
+      if (!canDeletePrompt(currentUser, prompt)) {
+        failed.push({ promptId, error: 'Unauthorized: Only the prompt keeper can delete prompts' });
+        continue;
+      }
+
       await deletePromptWithCascade(promptId, userId);
       successful.push(promptId);
     } catch (error) {
@@ -1386,13 +1402,15 @@ export async function getDeletionBackup(promptId: string): Promise<DeletionBacku
 
 export async function restoreDeletedPrompt(promptId: string, restoredBy?: string): Promise<void> {
   const currentUser = await getCurrentUser();
-  if (!canEditPrompt(currentUser)) {
-    throw new Error('Unauthorized: Only the prompt keeper can restore prompts');
-  }
-
   const backup = await getDeletionBackup(promptId);
   if (!backup) {
     throw new Error('No backup found for this prompt');
+  }
+
+  // Check if current user has permission to edit this specific prompt
+  const prompt = { ...backup.promptData, id: promptId };
+  if (!canEditPrompt(currentUser, prompt)) {
+    throw new Error('Unauthorized: Only the prompt keeper can restore prompts');
   }
 
   const userId = restoredBy || currentUser?.id || 'system';
@@ -2048,7 +2066,7 @@ export async function bulkDeletePrompts(
 
       // Check permissions
       const currentUser = await getCurrentUser();
-      if (!canDeletePrompt(currentUser)) {
+      if (!canDeletePrompt(currentUser, prompt)) {
         result.failed.push({
           promptId,
           error: 'Unauthorized: Only super users can delete prompts'
@@ -2114,7 +2132,7 @@ export async function bulkAddTagsToPrompts(
 
       // Check permissions
       const currentUser = await getCurrentUser();
-      if (!canEditPrompt(currentUser)) {
+      if (!canEditPrompt(currentUser, prompt)) {
         result.failed.push({
           promptId,
           error: 'Unauthorized: Only super users can edit prompts'
@@ -2181,7 +2199,7 @@ export async function bulkRemoveTagsFromPrompts(
 
       // Check permissions
       const currentUser = await getCurrentUser();
-      if (!canEditPrompt(currentUser)) {
+      if (!canEditPrompt(currentUser, prompt)) {
         result.failed.push({
           promptId,
           error: 'Unauthorized: Only super users can edit prompts'

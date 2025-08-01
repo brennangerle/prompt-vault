@@ -1,41 +1,37 @@
 'use client';
 
 import * as React from 'react';
-import type { Prompt } from '@/lib/types';
-import {
-  BookMarked,
-  Folder,
-  Globe,
-  User as UserIcon,
-  Users,
-  Settings,
-  Crown,
-} from 'lucide-react';
-import { AuthGuard } from '@/components/auth-guard';
-import {
-  Sidebar,
-  SidebarProvider,
-  SidebarHeader,
-  SidebarContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarInset,
-  SidebarTrigger,
-  SidebarSeparator,
-  SidebarGroup,
-  SidebarGroupLabel,
-} from '@/components/ui/sidebar';
+import { useRouter } from 'next/navigation';
+import { logoutUser } from '@/lib/auth';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarSeparator, SidebarTrigger } from '@/components/ui/sidebar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { PromptCard } from '@/components/prompt-card';
 import { QuickPromptForm } from '@/components/quick-prompt-form';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
+import { NewPromptDialog } from '@/components/new-prompt-dialog';
+import { AuthGuard } from '@/components/auth-guard';
 import { 
-  subscribeToPrompts, 
+  BookMarked, 
+  UserIcon, 
+  Users, 
+  Globe, 
+  Folder, 
+  Settings, 
+  LogOut, 
+  ChevronUp, 
+  Crown,
+  Lock,
+  ArrowUpRight,
+  Plus
+} from 'lucide-react';
+import type { Prompt } from '@/lib/types';
+import { 
   createPrompt, 
   updatePrompt, 
-  deletePrompt,
+  deletePrompt, 
+  subscribeToPrompts,
   getPromptsBySharing 
 } from '@/lib/db';
 import { useUser } from '@/lib/user-context';
@@ -56,6 +52,21 @@ export default function PromptKeeperPage() {
   const [selectedScope, setSelectedScope] = React.useState<SharingScope>('private');
   const { currentUser, isLoading } = useUser();
   const router = useRouter();
+
+  // Get all unique tags from prompts for filtering
+  const allTags = React.useMemo(() => {
+    const tags = new Set<string>();
+    prompts.forEach(prompt => {
+      prompt.tags.forEach(tag => tags.add(tag));
+    });
+    return Array.from(tags).sort();
+  }, [prompts]);
+
+  // Filter prompts by selected tag
+  const filteredPrompts = React.useMemo(() => {
+    if (selectedTag === 'All') return prompts;
+    return prompts.filter(prompt => prompt.tags.includes(selectedTag));
+  }, [prompts, selectedTag]);
 
   // Subscribe to prompts based on selected scope
   React.useEffect(() => {
@@ -135,31 +146,36 @@ export default function PromptKeeperPage() {
     setSelectedTag('All');
   };
 
-  const scopeFilteredPrompts = React.useMemo(() => {
-    // Prompts are already filtered by the database queries in useEffect
-    // Sort by createdAt in descending order (newest first)
-    return [...prompts].sort((a, b) => {
-      if (!a.createdAt || !b.createdAt) return 0;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-  }, [prompts]);
-  
-  const allTags = React.useMemo(() => {
-    const tagsSet = new Set<string>();
-    scopeFilteredPrompts.forEach(p => p.tags.forEach(tag => tagsSet.add(tag)));
-    return ['All', ...Array.from(tagsSet).sort()];
-  }, [scopeFilteredPrompts]);
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      router.push('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
-  const filteredPrompts = React.useMemo(() =>
-    selectedTag === 'All'
-      ? scopeFilteredPrompts
-      : scopeFilteredPrompts.filter((p) => p.tags.includes(selectedTag))
-  , [scopeFilteredPrompts, selectedTag]);
+  const getSubscriptionType = () => {
+    // TODO: Implement subscription logic
+    return 'Free';
+  };
+
+  const getSubscriptionBadgeVariant = (type: string) => {
+    switch (type) {
+      case 'Pro': return 'default';
+      case 'Max': return 'secondary';
+      default: return 'outline';
+    }
+  };
+
+  // Check if user has access to team features
+  const hasTeamAccess = currentUser?.teamId;
+  const isTeamScopeDisabled = !hasTeamAccess;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">Loading...</div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -167,7 +183,7 @@ export default function PromptKeeperPage() {
   return (
     <AuthGuard>
       <SidebarProvider>
-        <div className="flex min-h-screen">
+        <div className="flex min-h-screen w-full">
         <Sidebar className="dark border-r border-sidebar-border/50">
           <SidebarHeader>
             <div className="flex items-center justify-between p-4">
@@ -175,7 +191,7 @@ export default function PromptKeeperPage() {
                 <div className="p-2 rounded-xl bg-primary/20 backdrop-blur-sm">
                   <BookMarked className="size-7 text-primary animate-glow" />
                 </div>
-                <span className="text-xl font-bold text-sidebar-foreground bg-gradient-to-r from-sidebar-foreground to-primary bg-clip-text text-transparent">
+                <span className="text-xl font-bold bg-gradient-to-r from-sidebar-foreground to-primary bg-clip-text text-transparent">
                   The Prompt Keeper
                 </span>
               </div>
@@ -190,31 +206,38 @@ export default function PromptKeeperPage() {
                     <Crown className="h-5 w-5 text-primary" />
                   </Button>
                 )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => router.push('/settings')}
-                  className="h-10 w-10 rounded-full hover:bg-sidebar-accent/20 transition-all duration-300 border border-sidebar-border/30"
-                >
-                  <Settings className="h-5 w-5 text-sidebar-foreground/70 hover:text-primary transition-colors duration-300" />
-                </Button>
               </div>
             </div>
           </SidebarHeader>
           <SidebarContent className="px-3">
             <SidebarMenu className="space-y-2">
-              {scopeData.map((scope) => (
-                <SidebarMenuItem key={scope.id}>
-                  <SidebarMenuButton
-                    onClick={() => handleScopeChange(scope.id)}
-                    isActive={selectedScope === scope.id}
-                    className="gap-3 px-4 py-3 rounded-xl hover:bg-sidebar-accent/20 transition-all duration-300 group data-[active=true]:bg-primary/20 data-[active=true]:text-primary data-[active=true]:shadow-lg"
-                  >
-                    <scope.icon className="size-5 text-sidebar-foreground/70 group-hover:text-primary group-data-[active=true]:text-primary transition-colors duration-300" />
-                    <span className="font-medium">{scope.label}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {scopeData.map((scope) => {
+                const isDisabled = scope.id === 'team' && isTeamScopeDisabled;
+                return (
+                  <SidebarMenuItem key={scope.id}>
+                    <SidebarMenuButton
+                      onClick={() => !isDisabled && handleScopeChange(scope.id)}
+                      isActive={selectedScope === scope.id}
+                      disabled={isDisabled}
+                      className={`gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${
+                        isDisabled 
+                          ? 'opacity-50 cursor-not-allowed' 
+                          : 'hover:bg-sidebar-accent/20 data-[active=true]:bg-primary/20 data-[active=true]:text-primary data-[active=true]:shadow-lg'
+                      }`}
+                    >
+                      <scope.icon className={`size-5 transition-colors duration-300 ${
+                        isDisabled 
+                          ? 'text-sidebar-foreground/30' 
+                          : 'text-sidebar-foreground/70 group-hover:text-primary group-data-[active=true]:text-primary'
+                      }`} />
+                      <span className="font-medium">{scope.label}</span>
+                      {isDisabled && (
+                        <Lock className="size-4 text-sidebar-foreground/30 ml-auto" />
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
             <SidebarSeparator className="my-6 bg-sidebar-border/30" />
             <SidebarGroup>
@@ -235,26 +258,94 @@ export default function PromptKeeperPage() {
               </SidebarMenu>
             </SidebarGroup>
           </SidebarContent>
+          <SidebarFooter className="p-4">
+            {currentUser && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuButton className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-sidebar-accent/20 transition-all duration-300 group cursor-pointer">
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                      <UserIcon className="size-4 text-primary" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-sm font-medium text-sidebar-foreground">
+                          {currentUser.displayName || currentUser.email?.split('@')[0] || 'User'}
+                        </p>
+                        <Badge 
+                          variant={getSubscriptionBadgeVariant(getSubscriptionType())}
+                          className="text-xs px-2 py-0.5"
+                        >
+                          {getSubscriptionType()}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-sidebar-foreground/60">
+                        {currentUser.email}
+                      </p>
+                    </div>
+                    <ChevronUp className="size-4 text-sidebar-foreground/70 group-hover:text-primary transition-colors duration-300" />
+                  </SidebarMenuButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => router.push('/settings')} className="gap-3 cursor-pointer">
+                    <Settings className="size-4" />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout} className="gap-3 cursor-pointer">
+                    <LogOut className="size-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </SidebarFooter>
         </Sidebar>
-        <div className="flex-1 bg-gradient-to-br from-background via-background to-primary/5">
-          <header className="flex items-center justify-between border-b border-border/50 backdrop-blur-sm bg-background/80 p-6 sm:p-8">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger className="md:hidden h-10 w-10 rounded-xl hover:bg-primary/10 transition-all duration-300"/>
+        <div className="flex-1 flex flex-col">
+          <header className="border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="flex items-center justify-between p-6">
               <div>
-                <h1 className="text-3xl font-bold text-foreground bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
+                <h1 className="text-2xl font-bold">
                   {scopeData.find(s => s.id === selectedScope)?.label}
                 </h1>
-                <p className="text-muted-foreground mt-1 font-medium">
-                  {selectedTag === 'All'
-                    ? scopeData.find(s => s.id === selectedScope)?.description
-                    : `Prompts tagged with "${selectedTag}"`}
+                <p className="text-muted-foreground">
+                  {scopeData.find(s => s.id === selectedScope)?.description}
                 </p>
+              </div>
+              <div className="flex items-center gap-4">
+                {selectedTag !== 'All' && (
+                  <Badge variant="secondary" className="gap-2">
+                    <Folder className="size-3" />
+                    {selectedTag}
+                  </Badge>
+                )}
+                <NewPromptDialog onAddPrompt={addPrompt}>
+                  <Button className="gap-2">
+                    <Plus className="size-4" />
+                    New Prompt
+                  </Button>
+                </NewPromptDialog>
               </div>
             </div>
           </header>
-          <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto space-y-8">
-            {selectedScope === 'private' && <QuickPromptForm onAddPrompt={addPrompt} />}
-            {filteredPrompts.length > 0 ? (
+          <main className="flex-1 p-6">
+            {isTeamScopeDisabled && selectedScope === 'team' ? (
+              <Card className="max-w-md mx-auto mt-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lock className="size-5" />
+                    Team Access Required
+                  </CardTitle>
+                  <CardDescription>
+                    You need to be part of a team to access the Team Repository. Upgrade to Pro or Max to create and join teams.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button onClick={() => router.push('/pricing')} className="w-full gap-2">
+                    <ArrowUpRight className="size-4" />
+                    Upgrade to Access Teams
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
               <div className="flex flex-col gap-6">
                 {filteredPrompts.map((prompt) => (
                   <PromptCard
@@ -262,22 +353,22 @@ export default function PromptKeeperPage() {
                     prompt={prompt}
                     onUpdatePrompt={updatePromptHandler}
                     onDeletePrompt={deletePromptHandler}
-                    isEditable={canEditPrompt(currentUser)}
+                    isEditable={canEditPrompt(currentUser, prompt)}
                   />
                 ))}
               </div>
-            ) : (
-              <Card className="w-full border-0 glass-light">
-                <CardContent className="flex min-h-[280px] flex-col items-center justify-center p-12 text-center">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
-                    <BookMarked className="w-8 h-8 text-primary" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-foreground mb-3">No Prompts Found</h2>
-                  <p className="mt-2 max-w-md text-muted-foreground leading-relaxed">
-                    There are no prompts in this view. Try a different scope or add a new prompt to your private repository.
-                  </p>
-                </CardContent>
-              </Card>
+            )}
+            {filteredPrompts.length === 0 && !isTeamScopeDisabled && (
+              <div className="text-center py-12">
+                <BookMarked className="size-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No prompts found</h3>
+                <p className="text-muted-foreground">
+                  {selectedTag !== 'All' 
+                    ? `No prompts found with the "${selectedTag}" tag.`
+                    : 'Create your first prompt to get started.'
+                  }
+                </p>
+              </div>
             )}
           </main>
         </div>

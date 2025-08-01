@@ -94,6 +94,7 @@ export interface DeletionBackup {
 export interface User {
   id: string;
   email: string;
+  displayName?: string;
   teamId?: string;
   role?: 'super_user' | 'user';
 }

@@ -33,6 +33,7 @@ import {
   User as UserIcon,
   ChevronDown,
   ChevronRight,
+  Zap,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { AuthGuard } from '@/components/auth-guard';
@@ -182,6 +183,22 @@ export default function SettingsPage() {
       router.push('/login');
     } catch (error) {
       console.error('Failed to logout:', error);
+    }
+  };
+
+  const getSubscriptionType = () => {
+    // For now, everyone gets 'Free' - this can be enhanced later with actual subscription logic
+    return 'Free';
+  };
+
+  const getSubscriptionBadgeVariant = (type: string) => {
+    switch (type) {
+      case 'Pro':
+        return 'default';
+      case 'Max':
+        return 'secondary';
+      default: // Free
+        return 'outline';
     }
   };
 
@@ -655,6 +672,45 @@ export default function SettingsPage() {
                   className="bg-background/50 backdrop-blur-sm border-border/50 text-base"
                 />
               </div>
+              
+              {/* Subscription Section */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Subscription</Label>
+                <div className="flex items-center justify-between p-4 bg-background/50 backdrop-blur-sm rounded-xl border border-border/30">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <Zap className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-base">Current Plan</span>
+                        <Badge 
+                          variant={getSubscriptionBadgeVariant(getSubscriptionType())}
+                          className="text-sm px-3 py-1"
+                        >
+                          {getSubscriptionType()}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {getSubscriptionType() === 'Free' 
+                          ? 'Upgrade to unlock more features and higher limits'
+                          : 'Thank you for supporting The Prompt Keeper'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  {getSubscriptionType() === 'Free' && (
+                    <Button
+                      onClick={() => router.push('/pricing')}
+                      className="gap-2 px-6 gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300"
+                    >
+                      <Zap className="h-4 w-4" />
+                      Upgrade
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
               <div className="pt-6 border-t border-border/30">
                 <Button
                   variant="outline"
