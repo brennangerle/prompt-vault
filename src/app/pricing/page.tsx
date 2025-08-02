@@ -1,20 +1,18 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStripe } from '@/lib/stripe/client';
 import { useUser } from '@/lib/user-context';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check, ArrowLeft } from 'lucide-react';
 
-// Define your subscription plans
+// Define your subscription plans with Stripe Payment Links
 const plans = [
   {
     name: 'Free',
     price: 0,
-    priceId: null,
+    paymentLink: null, // No payment needed for free plan
     features: [
       '5 enhanced prompts/month',
       '15 saved prompts',
@@ -23,7 +21,7 @@ const plans = [
   {
     name: 'Base',
     price: 400, // $4.00 in cents
-    priceId: process.env.NEXT_PUBLIC_STRIPE_BASE_PRICE_ID || 'price_base_placeholder',
+    paymentLink: process.env.NEXT_PUBLIC_STRIPE_BASE_PAYMENT_LINK || 'https://buy.stripe.com/test_base_plan', // Replace with your actual Payment Link
     features: [
       '20 enhanced prompts/month',
       '30 saved prompts',
@@ -34,7 +32,7 @@ const plans = [
   {
     name: 'Max',
     price: 1000, // $10.00 in cents
-    priceId: process.env.NEXT_PUBLIC_STRIPE_MAX_PRICE_ID || 'price_max_placeholder',
+    paymentLink: process.env.NEXT_PUBLIC_STRIPE_MAX_PAYMENT_LINK || 'https://buy.stripe.com/test_max_plan', // Replace with your actual Payment Link
     features: [
       '50 enhanced prompts/month',
       'Unlimited saved prompts',
@@ -47,7 +45,6 @@ const plans = [
 export default function PricingPage() {
   const router = useRouter();
   const { currentUser } = useUser();
-  const [loading, setLoading] = useState<string | null>(null);
 
   const getCurrentSubscription = () => {
     // For now, everyone gets 'Free' - this can be enhanced later with actual subscription logic
@@ -58,8 +55,8 @@ export default function PricingPage() {
     router.push('/settings');
   };
 
-  const handleSubscribe = async (priceId: string | null, planName: string) => {
-    if (!priceId) {
+  const handleSubscribe = (paymentLink: string | null, planName: string) => {
+    if (!paymentLink) {
       // Free plan - just redirect to dashboard
       router.push('/');
       return;
@@ -71,38 +68,9 @@ export default function PricingPage() {
       return;
     }
 
-    try {
-      setLoading(planName);
-
-      // Create checkout session
-      const response = await fetch('/api/stripe/checkout-sessions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          priceId,
-          userId: currentUser.id,
-          userEmail: currentUser.email,
-        }),
-      });
-
-      const { sessionId } = await response.json();
-
-      // Redirect to Stripe Checkout
-      const stripe = await getStripe();
-      const { error } = await stripe!.redirectToCheckout({ sessionId });
-
-      if (error) {
-        console.error('Stripe checkout error:', error);
-        // TODO: Show error toast
-      }
-    } catch (error) {
-      console.error('Error creating checkout session:', error);
-      // TODO: Show error toast
-    } finally {
-      setLoading(null);
-    }
+    // For no-code Stripe integration, simply redirect to the Payment Link
+    // The Payment Link handles all the checkout process
+    window.open(paymentLink, '_blank');
   };
 
   return (
@@ -192,11 +160,10 @@ export default function PricingPage() {
               <Button
                 className="w-full py-3 text-base font-semibold"
                 variant={isCurrentPlan ? 'secondary' : plan.popular ? 'default' : 'outline'}
-                onClick={() => !isComingSoon && !isCurrentPlan ? handleSubscribe(plan.priceId, plan.name) : undefined}
-                disabled={loading === plan.name || isComingSoon || isCurrentPlan}
+                onClick={() => !isComingSoon && !isCurrentPlan ? handleSubscribe(plan.paymentLink, plan.name) : undefined}
+                disabled={isComingSoon || isCurrentPlan}
               >
-                {loading === plan.name ? 'Processing...' : 
-                 isCurrentPlan ? 'Current Plan' :
+                {isCurrentPlan ? 'Current Plan' :
                  isComingSoon ? 'Coming Soon' :
                  plan.price === 0 ? 'Get Started' : 'Subscribe'}
               </Button>
