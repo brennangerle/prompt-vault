@@ -19,16 +19,19 @@ This is "The Prompt Keeper", a Next.js application for managing and organizing p
 ### Core Structure
 - **Frontend**: Next.js 15 with TypeScript, React 18, and Tailwind CSS
 - **UI Components**: Radix UI primitives with custom shadcn/ui components
+- **Backend**: Firebase Realtime Database with authentication
 - **AI Integration**: Google AI via Genkit for prompt optimization
-- **State Management**: React hooks and local state (no external state library)
+- **State Management**: React hooks with Firebase real-time data
 - **Styling**: Tailwind CSS with custom design system
+- **Analytics**: Google Analytics via Vercel Analytics
 
 ### Key Components
 - `src/app/page.tsx` - Main application with sidebar navigation and prompt management
 - `src/components/prompt-card.tsx` - Individual prompt display and actions
 - `src/components/quick-prompt-form.tsx` - Quick prompt creation form
 - `src/ai/flows/optimize-prompt.ts` - AI prompt optimization flow using Genkit
-- `src/lib/types.ts` - Core TypeScript interfaces (Prompt interface)
+- `src/lib/types.ts` - Core TypeScript interfaces (Prompt, User, Team, TeamMember)
+- `src/lib/firebase.ts` - Firebase configuration and service initialization
 
 ### Data Model
 ```typescript
@@ -39,15 +42,36 @@ interface Prompt {
   tags: string[];
   software?: string;
   sharing: 'private' | 'team' | 'global';
+  createdBy?: string;
+  teamId?: string;
+  createdAt?: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+  teamId?: string;
+  role?: 'super_user' | 'user';
+}
+
+interface Team {
+  id: string;
+  name: string;
+  members: TeamMember[];
+  createdBy?: string;
+  createdAt?: string;
 }
 ```
 
 ### Features
 - **Prompt Management**: Create, edit, delete, and organize prompts
+- **User Authentication**: Firebase Auth with team-based organization
 - **Sharing Scopes**: Private, team, and community sharing levels
 - **AI Optimization**: Use Genkit + Google AI to optimize prompt content
 - **Tagging System**: Organize prompts with tags (displayed as folders in sidebar)
 - **Copy Functionality**: Easy clipboard copy of prompt content
+- **Real-time Sync**: Firebase Realtime Database for collaborative editing
+- **Analytics**: User interaction tracking with Google Analytics
 - **Responsive Design**: Mobile-friendly with sidebar navigation
 
 ### AI Integration
@@ -58,6 +82,14 @@ interface Prompt {
 ### Development Notes
 - Uses shadcn/ui component library with Radix UI primitives
 - Custom sidebar navigation with scope and tag filtering
-- State managed entirely through React hooks
-- No persistence layer implemented (uses in-memory state)
+- State managed through React hooks integrated with Firebase
+- Firebase Realtime Database provides persistent storage and real-time sync
+- Firebase Authentication handles user management and team organization
+- Environment requires Firebase configuration in `src/lib/firebase.ts`
 - Tailwind with dark mode support for sidebar
+
+### Firebase Integration
+- **Database**: Firebase Realtime Database with security rules in `database.rules.json`
+- **Authentication**: Firebase Auth with Google sign-in
+- **Analytics**: Firebase Analytics integrated with Google Analytics
+- **Configuration**: Project uses Firebase project `prompt-vault-bw4ot`
