@@ -26,8 +26,8 @@ export default function LoginPage() {
   
   // New account creation state
   const [newEmail, setNewEmail] = React.useState('');
-  const [generatedPassword, setGeneratedPassword] = React.useState('');
-  const [showPassword, setShowPassword] = React.useState(false);
+  const [newPassword, setNewPassword] = React.useState('');
+  const [showNewPassword, setShowNewPassword] = React.useState(false);
   const [isCreatingAccount, setIsCreatingAccount] = React.useState(false);
   const [createAccountError, setCreateAccountError] = React.useState<string | null>(null);
   const [accountCreated, setAccountCreated] = React.useState(false);
@@ -44,13 +44,13 @@ export default function LoginPage() {
   };
 
   const handleGeneratePassword = () => {
-    const newPassword = generatePassword();
-    setGeneratedPassword(newPassword);
+    const generatedPassword = generatePassword();
+    setNewPassword(generatedPassword);
   };
 
   const handleCopyPassword = async () => {
     try {
-      await navigator.clipboard.writeText(generatedPassword);
+      await navigator.clipboard.writeText(newPassword);
       // You could add a toast notification here if needed
     } catch (err) {
       console.error('Failed to copy password:', err);
@@ -59,8 +59,13 @@ export default function LoginPage() {
 
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newEmail || !generatedPassword) {
-      setCreateAccountError('Please provide email and generate a password.');
+    if (!newEmail || !newPassword) {
+      setCreateAccountError('Please provide email and password.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setCreateAccountError('Password should be at least 6 characters long.');
       return;
     }
 
@@ -69,7 +74,7 @@ export default function LoginPage() {
 
     try {
       // Create Firebase Auth account
-      const userCredential = await createUserWithEmailAndPassword(auth, newEmail, generatedPassword);
+      const userCredential = await createUserWithEmailAndPassword(auth, newEmail, newPassword);
       
       // Create user in database
       const userData: Omit<User, 'id'> = {
@@ -84,7 +89,7 @@ export default function LoginPage() {
       
       // Clear form
       setNewEmail('');
-      setGeneratedPassword('');
+      setNewPassword('');
       
     } catch (error: any) {
       console.error('Account creation failed:', error.message);
@@ -226,38 +231,37 @@ export default function LoginPage() {
                   </div>
                   
                   <div className="space-y-3">
-                    <Label htmlFor="generatedPassword" className="text-base font-medium">Generated Password</Label>
+                    <Label htmlFor="newPassword" className="text-base font-medium">Password</Label>
                     <div className="relative">
                       <Input
-                        id="generatedPassword"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Click generate to create password"
-                        value={generatedPassword}
-                        readOnly
+                        id="newPassword"
+                        type={showNewPassword ? 'text' : 'password'}
+                        placeholder="Enter your password (min 6 characters)"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required
                         className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base pr-20"
                       />
                       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
-                        {generatedPassword && (
-                          <>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setShowPassword(!showPassword)}
-                              className="h-8 w-8 p-0 hover:bg-primary/10"
-                            >
-                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={handleCopyPassword}
-                              className="h-8 w-8 p-0 hover:bg-primary/10"
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                          </>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="h-8 w-8 p-0 hover:bg-primary/10"
+                        >
+                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                        {newPassword && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={handleCopyPassword}
+                            className="h-8 w-8 p-0 hover:bg-primary/10"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -286,7 +290,7 @@ export default function LoginPage() {
                       onClick={() => {
                         setShowCreateAccount(false);
                         setNewEmail('');
-                        setGeneratedPassword('');
+                        setNewPassword('');
                         setCreateAccountError(null);
                         setAccountCreated(false);
                       }}
@@ -296,7 +300,7 @@ export default function LoginPage() {
                     </Button>
                     <Button
                       type="submit"
-                      disabled={isCreatingAccount || !newEmail || !generatedPassword}
+                      disabled={isCreatingAccount || !newEmail || !newPassword}
                       className="flex-1 h-12 gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 font-semibold"
                     >
                       {isCreatingAccount ? 'Creating Account...' : 'Create Account'}
@@ -307,9 +311,9 @@ export default function LoginPage() {
             )}
           </div>
 
-          <div className="mt-6 text-center text-sm text-muted-foreground space-y-2">
+          <div className="mt-6 text-center text-sm text-muted-foreground">
             <div>
-              Don't have an account?{' '}
+              Need help with your account?{' '}
               <a 
                 href="https://www.thepromptkeeper.com/#contact" 
                 target="_blank" 
@@ -318,16 +322,6 @@ export default function LoginPage() {
               >
                 Contact the Master Keeper
               </a>
-            </div>
-            <div>
-              Added to a team but no password?{' '}
-              <Button 
-                variant="link" 
-                onClick={() => router.push('/first-time-login')}
-                className="p-0 h-auto font-medium text-accent hover:text-primary transition-colors duration-300"
-              >
-                First time login
-              </Button>
             </div>
           </div>
         </CardContent>
