@@ -9,7 +9,7 @@ import {
   sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { createUser, getUserByEmail, addTeamMember, verifyEmailExists, createEmailVerificationEntry, updateUser } from './db';
+import { createUser, createUserWithUid, getUserByEmail, addTeamMember, verifyEmailExists, createEmailVerificationEntry, updateUser } from './db';
 import type { User, TeamMember } from './types';
 
 // Predefined tester accounts
@@ -65,13 +65,13 @@ export async function loginUser(email: string, password: string = 'password123')
         role: 'user'
       };
       
-      const userId = await createUser(userData);
-      user = { id: userId, ...userData };
+      await createUserWithUid(firebaseUser.uid, userData);
+      user = { id: firebaseUser.uid, ...userData };
       
       // Add to team if it's a tester account
       if (testerData) {
         const teamMember: TeamMember = {
-          id: userId,
+          id: firebaseUser.uid,
           email,
           role: testerData.role,
           joinedAt: new Date().toISOString()
@@ -151,12 +151,12 @@ async function createTesterAccount(email: string): Promise<User> {
     role: 'user'
   };
   
-  const userId = await createUser(userData);
-  const user = { id: userId, ...userData };
+  await createUserWithUid(firebaseUser.uid, userData);
+  const user = { id: firebaseUser.uid, ...userData };
   
   // Add to team
   const teamMember: TeamMember = {
-    id: userId,
+    id: firebaseUser.uid,
     email,
     role: testerData.role,
     joinedAt: new Date().toISOString()
@@ -180,9 +180,13 @@ async function createOrGetSuperUser(): Promise<User> {
         role: 'super_user'
       };
       
-      const userId = await createUser(userData);
-      user = { id: userId, ...userData };
-      console.log('Super user created with ID:', userId);
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser) {
+        throw new Error('Super user not authenticated after creation/sign-in');
+      }
+      await createUserWithUid(firebaseUser.uid, userData);
+      user = { id: firebaseUser.uid, ...userData };
+      console.log('Super user created with ID:', firebaseUser.uid);
     } else {
       console.log('Super user found:', user);
       // Ensure the role is set correctly

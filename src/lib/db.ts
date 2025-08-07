@@ -38,6 +38,17 @@ export async function createUser(userData: Omit<User, 'id'>): Promise<string> {
   return newUserRef.key!;
 }
 
+export async function createUserWithUid(userId: string, userData: Omit<User, 'id'>): Promise<void> {
+  console.log('Creating user with data for UID:', userId, userData);
+  const userRef = ref(database, `users/${userId}`);
+  await set(userRef, userData);
+  console.log('User created with ID:', userId);
+
+  // Also create email verification entry for first-time login
+  console.log('Creating email verification entry for user:', userData.email);
+  await createEmailVerificationEntry(userData.email, userId, userData.teamId);
+}
+
 export async function getUser(userId: string): Promise<User | null> {
   const userRef = ref(database, `users/${userId}`);
   const snapshot = await get(userRef);

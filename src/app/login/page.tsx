@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { createUser } from '@/lib/db';
+import { createUser, createUserWithUid } from '@/lib/db';
 import type { User } from '@/lib/types';
 
 
@@ -82,7 +82,7 @@ export default function LoginPage() {
         role: 'user'
       };
       
-      const userId = await createUser(userData);
+      await createUserWithUid(userCredential.user.uid, userData);
       
       setAccountCreated(true);
       setCreateAccountError(null);
