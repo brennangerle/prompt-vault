@@ -17,6 +17,7 @@ import { db } from './firebase';
 
 interface AuthContextType {
   user: User | null;
+  teamId?: string;
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
@@ -30,6 +31,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [teamId, setTeamId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -38,6 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUser(user);
+        const idTokenResult = await user.getIdTokenResult();
+        setTeamId(idTokenResult.claims.teamId as string | undefined);
         // Create/update user document in Firestore
         const userRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userRef);
@@ -58,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setUser(null);
+        setTeamId(undefined);
       }
       setLoading(false);
     });
@@ -130,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = {
     user,
+    teamId,
     loading,
     error,
     login,

@@ -12,11 +12,16 @@ service cloud.firestore {
     }
     
     function isValidPrompt() {
-      return request.resource.data.keys().hasAll(['title', 'content', 'tags', 'sharing', 'userId']) &&
-             request.resource.data.title is string &&
-             request.resource.data.content is string &&
-             request.resource.data.tags is list &&
-             request.resource.data.sharing in ['private', 'team', 'global'];
+      let data = request.resource.data;
+      let isTeamPrompt = data.sharing == 'team';
+      let hasRequiredFields = data.keys().hasAll(['title', 'content', 'tags', 'sharing', 'userId']);
+
+      return hasRequiredFields &&
+             data.title is string &&
+             data.content is string &&
+             data.tags is list &&
+             data.sharing in ['private', 'team', 'global'] &&
+             (isTeamPrompt ? data.keys().has('teamId') && data.teamId is string : true);
     }
     
     // Users collection
@@ -37,13 +42,15 @@ service cloud.firestore {
       // Create rule - must be authenticated and valid
       allow create: if isAuthenticated() && 
                       isValidPrompt() &&
-                      request.resource.data.userId == request.auth.uid;
+                      request.resource.data.userId == request.auth.uid &&
+                      (request.resource.data.sharing != 'team' || request.resource.data.teamId == request.auth.token.teamId);
       
       // Update rule - only owner can update
       allow update: if isAuthenticated() && 
                       resource.data.userId == request.auth.uid &&
                       isValidPrompt() &&
-                      request.resource.data.userId == request.auth.uid; // Can't change ownership
+                      request.resource.data.userId == request.auth.uid && // Can't change ownership
+                      (request.resource.data.sharing != 'team' || request.resource.data.teamId == request.auth.token.teamId);
       
       // Delete rule - only owner can delete
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;

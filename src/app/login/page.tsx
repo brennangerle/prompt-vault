@@ -85,7 +85,7 @@ export default function LoginPage() {
               )}
             </Button>
             <div className="text-sm text-center text-muted-foreground">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Button
                 variant="link"
                 className="p-0"

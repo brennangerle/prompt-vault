@@ -38,7 +38,7 @@ type PromptFormValues = z.infer<typeof promptFormSchema>;
 
 interface NewPromptDialogProps {
   children: React.ReactNode;
-  onAddPrompt: (prompt: Omit<Prompt, 'id'>) => void;
+  onAddPrompt: (prompt: Omit<Prompt, 'id' | 'sharing'>) => void;
 }
 
 export function NewPromptDialog({ children, onAddPrompt }: NewPromptDialogProps) {
@@ -99,7 +99,7 @@ export function NewPromptDialog({ children, onAddPrompt }: NewPromptDialogProps)
         <DialogHeader>
           <DialogTitle>Add New Prompt</DialogTitle>
           <DialogDescription>
-            Paste your prompt below. We'll use AI to automatically generate a title and tags for you.
+            Paste your prompt below. We&apos;ll use AI to automatically generate a title and tags for you.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

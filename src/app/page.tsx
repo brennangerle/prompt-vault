@@ -50,7 +50,7 @@ export default function PromptKeeperPage() {
   const [selectedTag, setSelectedTag] = React.useState<string | 'All'>('All');
   const [selectedScope, setSelectedScope] = React.useState<SharingScope>('private');
   const [isLoading, setIsLoading] = React.useState(true);
-  const { user, logout } = useAuth();
+  const { user, logout, teamId } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -63,6 +63,7 @@ export default function PromptKeeperPage() {
     
     const unsubscribe = subscribeToPrompts(
       user.uid,
+      teamId,
       scope as 'private' | 'team' | 'global',
       (fetchedPrompts) => {
         setPrompts(fetchedPrompts);
@@ -71,13 +72,13 @@ export default function PromptKeeperPage() {
     );
 
     return () => unsubscribe();
-  }, [user, selectedScope]);
+  }, [user, selectedScope, teamId]);
 
   const addPrompt = async (prompt: Omit<Prompt, 'id' | 'sharing'>) => {
     if (!user) return;
     
     try {
-      await createPrompt(user.uid, { ...prompt, sharing: 'private' });
+      await createPrompt(user.uid, teamId, { ...prompt, sharing: 'private' });
       toast({
         title: 'Prompt created',
         description: 'Your prompt has been saved successfully.',

@@ -23,15 +23,20 @@ const promptsCollection = collection(db, 'prompts');
 // Create a new prompt
 export async function createPrompt(
   userId: string,
+  teamId: string | undefined,
   promptData: Omit<Prompt, 'id'>
 ): Promise<string> {
   try {
-    const docRef = await addDoc(promptsCollection, {
+    const data: any = {
       ...promptData,
       userId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+    if (promptData.sharing === 'team') {
+      data.teamId = teamId;
+    }
+    const docRef = await addDoc(promptsCollection, data);
     return docRef.id;
   } catch (error) {
     console.error('Error creating prompt:', error);
@@ -70,6 +75,7 @@ export async function deletePrompt(promptId: string): Promise<void> {
 // Get prompts based on sharing scope
 export async function getPrompts(
   userId: string,
+  teamId: string | undefined,
   scope: 'private' | 'team' | 'global'
 ): Promise<Prompt[]> {
   try {
@@ -85,6 +91,7 @@ export async function getPrompts(
       // Get prompts shared with team
       constraints = [
         where('sharing', '==', 'team'),
+        where('teamId', '==', teamId),
         orderBy('createdAt', 'desc')
       ];
     } else if (scope === 'global') {
@@ -121,6 +128,7 @@ export async function getPrompts(
 // Subscribe to prompts in real-time
 export function subscribeToPrompts(
   userId: string,
+  teamId: string | undefined,
   scope: 'private' | 'team' | 'global',
   callback: (prompts: Prompt[]) => void
 ): () => void {
@@ -134,6 +142,7 @@ export function subscribeToPrompts(
   } else if (scope === 'team') {
     constraints = [
       where('sharing', '==', 'team'),
+      where('teamId', '==', teamId),
       orderBy('createdAt', 'desc')
     ];
   } else if (scope === 'global') {
