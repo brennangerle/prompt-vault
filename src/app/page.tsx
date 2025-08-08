@@ -46,7 +46,7 @@ type SharingScope = 'private' | 'team' | 'community';
 
 const scopeData: { id: SharingScope; label: string; icon: React.ElementType; description: string; disabled?: boolean; }[] = [
   { id: 'private', label: 'My Prompt Repository', icon: UserIcon, description: 'Your personal collection. All prompts you created, regardless of sharing level.' },
-  { id: 'team', label: 'Team Repository (Coming Soon)', icon: Users, description: 'Team collaboration features are coming soon!', disabled: true },
+  { id: 'team', label: 'Team Repository', icon: Users, description: "Team prompts from your team plus community prompts." },
   { id: 'community', label: 'Community Showcase', icon: Globe, description: 'Discover prompts shared by the entire community.' },
 ];
 
@@ -131,10 +131,6 @@ export default function PromptKeeperPage() {
   };
   
   const handleScopeChange = (scope: SharingScope) => {
-    // Prevent team scope selection for now
-    if (scope === 'team') {
-      return;
-    }
     setSelectedScope(scope);
     setSelectedTag('All');
   };

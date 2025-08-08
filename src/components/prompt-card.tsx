@@ -54,10 +54,14 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
 
   const handleSharingChange = (isTeam: boolean) => {
     if (prompt.sharing !== 'global' && isEditable) {
-      // When changing to team sharing, ensure teamId is set
       const updates: Partial<Prompt> = {
         sharing: isTeam ? 'team' : 'private'
       };
+
+      // When enabling team sharing, ensure teamId exists on the prompt by inheriting current user's teamId
+      if (isTeam && !prompt.teamId && currentUser?.teamId) {
+        updates.teamId = currentUser.teamId;
+      }
       
       // If changing to private, we can optionally clear teamId
       if (!isTeam && prompt.teamId) {
@@ -66,7 +70,6 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
       
       onUpdatePrompt({ ...prompt, ...updates });
       
-      // Show feedback to user
       toast({
         title: isTeam ? 'Copied to Team' : 'Moved to Private',
         description: isTeam ? 'Your prompt is now visible to your team.' : 'Your prompt is now private.',
@@ -140,7 +143,7 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Coming soon</p>
+                  <p>Toggle to share with your team</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
