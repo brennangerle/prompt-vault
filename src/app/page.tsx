@@ -44,9 +44,9 @@ import type { User } from '@/lib/types';
 
 type SharingScope = 'private' | 'team' | 'community';
 
-const scopeData: { id: SharingScope; label: string; icon: React.ElementType; description: string; }[] = [
+const scopeData: { id: SharingScope; label: string; icon: React.ElementType; description: string; disabled?: boolean; }[] = [
   { id: 'private', label: 'My Prompt Repository', icon: UserIcon, description: 'Your personal collection. All prompts you created, regardless of sharing level.' },
-  { id: 'team', label: 'Team Repository', icon: Users, description: 'Team prompts plus community prompts. Includes everything shared with your team.' },
+  { id: 'team', label: 'Team Repository (Coming Soon)', icon: Users, description: 'Team collaboration features are coming soon!', disabled: true },
   { id: 'community', label: 'Community Showcase', icon: Globe, description: 'Discover prompts shared by the entire community.' },
 ];
 
@@ -131,6 +131,10 @@ export default function PromptKeeperPage() {
   };
   
   const handleScopeChange = (scope: SharingScope) => {
+    // Prevent team scope selection for now
+    if (scope === 'team') {
+      return;
+    }
     setSelectedScope(scope);
     setSelectedTag('All');
   };
@@ -206,11 +210,20 @@ export default function PromptKeeperPage() {
               {scopeData.map((scope) => (
                 <SidebarMenuItem key={scope.id}>
                   <SidebarMenuButton
-                    onClick={() => handleScopeChange(scope.id)}
-                    isActive={selectedScope === scope.id}
-                    className="gap-3 px-4 py-3 rounded-xl hover:bg-sidebar-accent/20 transition-all duration-300 group data-[active=true]:bg-primary/20 data-[active=true]:text-primary data-[active=true]:shadow-lg"
+                    onClick={scope.disabled ? undefined : () => handleScopeChange(scope.id)}
+                    isActive={selectedScope === scope.id && !scope.disabled}
+                    disabled={scope.disabled}
+                    className={`gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${
+                      scope.disabled 
+                        ? 'opacity-50 cursor-not-allowed text-muted-foreground' 
+                        : 'hover:bg-sidebar-accent/20 data-[active=true]:bg-primary/20 data-[active=true]:text-primary data-[active=true]:shadow-lg'
+                    }`}
                   >
-                    <scope.icon className="size-5 text-sidebar-foreground/70 group-hover:text-primary group-data-[active=true]:text-primary transition-colors duration-300" />
+                    <scope.icon className={`size-5 transition-colors duration-300 ${
+                      scope.disabled 
+                        ? 'text-muted-foreground' 
+                        : 'text-sidebar-foreground/70 group-hover:text-primary group-data-[active=true]:text-primary'
+                    }`} />
                     <span className="font-medium">{scope.label}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
