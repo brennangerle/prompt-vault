@@ -266,13 +266,12 @@ export default function PromptKeeperPage() {
             {filteredPrompts.length > 0 ? (
               <div className="flex flex-col gap-6">
                 {filteredPrompts.map((prompt) => (
-                  <PromptCard
-                    key={prompt.id}
-                    prompt={prompt}
-                    onUpdatePrompt={updatePromptHandler}
-                    onDeletePrompt={deletePromptHandler}
-                    isEditable={canEditPrompt(currentUser)}
-                  />
+                                    <PromptCard
+                     key={prompt.id}
+                     prompt={prompt}
+                     onUpdatePrompt={updatePromptHandler}
+                     onDeletePrompt={deletePromptHandler}
+                   />
                 ))}
               </div>
             ) : (
