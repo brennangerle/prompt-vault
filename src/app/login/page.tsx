@@ -145,12 +145,18 @@ export default function LoginPage() {
               The Prompt Keeper
             </span>
           </div>
-          <CardTitle className="text-2xl font-bold mb-3 group-hover:text-primary transition-colors duration-300">
-            {showCreateAccount ? 'Join Us' : 'Welcome back'}
+          <CardTitle className={`font-bold mb-3 transition-colors duration-300 ${
+            showCreateAccount 
+              ? 'text-3xl text-primary' 
+              : 'text-2xl group-hover:text-primary'
+          }`}>
+            {showCreateAccount ? 'Create New Account' : 'Welcome back'}
           </CardTitle>
-          <p className="text-muted-foreground text-base leading-relaxed">
-            {showCreateAccount ? 'Create your account to get started' : 'Sign in to access your prompt repository'}
-          </p>
+          {!showCreateAccount && (
+            <p className="text-muted-foreground text-base leading-relaxed">
+              Sign in to access your prompt repository
+            </p>
+          )}
         </CardHeader>
         <CardContent className="px-8 pb-8">
           {!showCreateAccount ? (
@@ -214,10 +220,6 @@ export default function LoginPage() {
           ) : (
             // Create Account Form
             <div className="space-y-6">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-foreground mb-2">Create New Account</h3>
-                <p className="text-sm text-muted-foreground">Create a secure account with your credentials</p>
-              </div>
               
               {accountCreated && (
                 <Alert className="border-green-200 bg-green-50 text-green-800">
