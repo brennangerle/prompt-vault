@@ -59,15 +59,17 @@ export async function getUser(userId: string): Promise<User | null> {
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  const usersRef = ref(database, 'users');
-  const userQuery = query(usersRef, orderByChild('email'), equalTo(email));
-  const snapshot = await get(userQuery);
+  console.log(`[getUserByEmail] Verifying email: ${email}`);
+  const emailVerification = await verifyEmailExists(email);
   
-  if (snapshot.exists()) {
-    const userData = snapshot.val();
-    const userId = Object.keys(userData)[0];
-    return { id: userId, ...userData[userId] };
+  if (emailVerification.exists && emailVerification.userId) {
+    console.log(`[getUserByEmail] Email verified, found userId: ${emailVerification.userId}`);
+    const user = await getUser(emailVerification.userId);
+    console.log(`[getUserByEmail] Found user:`, user);
+    return user;
   }
+
+  console.log(`[getUserByEmail] Email not found in verification path: ${email}`);
   return null;
 }
 
