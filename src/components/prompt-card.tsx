@@ -32,10 +32,9 @@ interface PromptCardProps {
   prompt: Prompt;
   onUpdatePrompt: (prompt: Prompt) => void;
   onDeletePrompt: (id: string) => void;
-  isEditable: boolean;
 }
 
-export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable }: PromptCardProps) {
+export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCardProps) {
   const [isCopied, setIsCopied] = React.useState(false);
   const { currentUser } = useUser();
   const { toast } = useToast();
@@ -53,7 +52,7 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
   };
 
   const handleSharingChange = (isTeam: boolean) => {
-    if (prompt.sharing !== 'global' && isEditable) {
+    if (prompt.sharing !== 'global' && canEdit) {
       const updates: Partial<Prompt> = {
         sharing: isTeam ? 'team' : 'private'
       };
@@ -61,11 +60,6 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
       // When enabling team sharing, ensure teamId exists on the prompt by inheriting current user's teamId
       if (isTeam && !prompt.teamId && currentUser?.teamId) {
         updates.teamId = currentUser.teamId;
-      }
-      
-      // If changing to private, we can optionally clear teamId
-      if (!isTeam && prompt.teamId) {
-        updates.teamId = undefined;
       }
       
       onUpdatePrompt({ ...prompt, ...updates });
