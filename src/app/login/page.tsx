@@ -27,6 +27,7 @@ export default function LoginPage() {
   // New account creation state
   const [newEmail, setNewEmail] = React.useState('');
   const [newPassword, setNewPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
   const [showNewPassword, setShowNewPassword] = React.useState(false);
   const [isCreatingAccount, setIsCreatingAccount] = React.useState(false);
   const [createAccountError, setCreateAccountError] = React.useState<string | null>(null);
@@ -46,6 +47,7 @@ export default function LoginPage() {
   const handleGeneratePassword = () => {
     const generatedPassword = generatePassword();
     setNewPassword(generatedPassword);
+    setConfirmPassword(generatedPassword);
   };
 
   const handleCopyPassword = async () => {
@@ -59,8 +61,13 @@ export default function LoginPage() {
 
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newEmail || !newPassword) {
-      setCreateAccountError('Please provide email and password.');
+    if (!newEmail || !newPassword || !confirmPassword) {
+      setCreateAccountError('Please provide email, password, and confirm password.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setCreateAccountError('Passwords do not match. Please try again.');
       return;
     }
 
@@ -90,6 +97,7 @@ export default function LoginPage() {
       // Clear form
       setNewEmail('');
       setNewPassword('');
+      setConfirmPassword('');
       
     } catch (error: any) {
       console.error('Account creation failed:', error.message);
@@ -137,179 +145,196 @@ export default function LoginPage() {
               The Prompt Keeper
             </span>
           </div>
-          <CardTitle className="text-2xl font-bold mb-3 group-hover:text-primary transition-colors duration-300">Welcome back</CardTitle>
+          <CardTitle className="text-2xl font-bold mb-3 group-hover:text-primary transition-colors duration-300">
+            {showCreateAccount ? 'Join Us' : 'Welcome back'}
+          </CardTitle>
           <p className="text-muted-foreground text-base leading-relaxed">
-            Sign in to access your prompt repository
+            {showCreateAccount ? 'Create your account to get started' : 'Sign in to access your prompt repository'}
           </p>
         </CardHeader>
         <CardContent className="px-8 pb-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-3">
-              <Label htmlFor="email" className="text-base font-medium">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
-              />
-            </div>
-            <div className="space-y-3">
-              <Label htmlFor="password" className="text-base font-medium">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
-              />
-            </div>
-            
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            
-            <Button
-              type="submit"
-              className="w-full h-12 gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 font-semibold text-base"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Signing in...' : 'Sign in'}
-            </Button>
-          </form>
-          
-          <div className="mt-8">
-            <Separator className="mb-6" />
-            
-            {!showCreateAccount && (
-              <div className="text-center">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowCreateAccount(true)}
-                  className="w-full h-12 border-primary/20 text-primary hover:bg-primary/10 transition-all duration-300"
-                >
-                  Create New Account
-                </Button>
-              </div>
-            )}
-            
-            {showCreateAccount && (
-              <div className="space-y-6">
-                <div className="text-center">
-                  <h3 className="text-lg font-semibold text-foreground mb-2">Create New Account</h3>
-                  <p className="text-sm text-muted-foreground">Generate a secure account with a random password</p>
+          {!showCreateAccount ? (
+            // Login Form
+            <>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-3">
+                  <Label htmlFor="email" className="text-base font-medium">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="password" className="text-base font-medium">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
+                  />
                 </div>
                 
-                {accountCreated && (
-                  <Alert className="border-green-200 bg-green-50 text-green-800">
-                    <AlertCircle className="h-4 w-4 text-green-600" />
-                    <AlertDescription>
-                      Account created successfully! You can now use the credentials to log in.
-                    </AlertDescription>
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
                 
-                <form onSubmit={handleCreateAccount} className="space-y-4">
-                  <div className="space-y-3">
-                    <Label htmlFor="newEmail" className="text-base font-medium">Email Address</Label>
+                <Button
+                  type="submit"
+                  className="w-full h-12 gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 font-semibold text-base"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Signing in...' : 'Sign in'}
+                </Button>
+              </form>
+              
+              <div className="mt-8">
+                <Separator className="mb-6" />
+                <div className="text-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCreateAccount(true)}
+                    className="w-full h-12 border-primary/20 text-primary hover:bg-primary/10 transition-all duration-300"
+                  >
+                    Create New Account
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            // Create Account Form
+            <div className="space-y-6">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-foreground mb-2">Create New Account</h3>
+                <p className="text-sm text-muted-foreground">Create a secure account with your credentials</p>
+              </div>
+              
+              {accountCreated && (
+                <Alert className="border-green-200 bg-green-50 text-green-800">
+                  <AlertCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription>
+                    Account created successfully! You can now use the credentials to log in.
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              <form onSubmit={handleCreateAccount} className="space-y-4">
+                <div className="space-y-3">
+                  <Label htmlFor="newEmail" className="text-base font-medium">Email Address</Label>
+                  <Input
+                    id="newEmail"
+                    type="email"
+                    placeholder="Enter email address"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    required
+                    className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
+                  />
+                </div>
+                
+                <div className="space-y-3">
+                  <Label htmlFor="newPassword" className="text-base font-medium">Password</Label>
+                  <div className="relative">
                     <Input
-                      id="newEmail"
-                      type="email"
-                      placeholder="Enter email address"
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
+                      id="newPassword"
+                      type={showNewPassword ? 'text' : 'password'}
+                      placeholder="Enter your password (min 6 characters)"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
                       required
-                      className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
+                      className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base pr-20"
                     />
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <Label htmlFor="newPassword" className="text-base font-medium">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="newPassword"
-                        type={showNewPassword ? 'text' : 'password'}
-                        placeholder="Enter your password (min 6 characters)"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        required
-                        className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base pr-20"
-                      />
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="h-8 w-8 p-0 hover:bg-primary/10"
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                      {newPassword && (
                         <Button
                           type="button"
                           size="sm"
                           variant="ghost"
-                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          onClick={handleCopyPassword}
                           className="h-8 w-8 p-0 hover:bg-primary/10"
                         >
-                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          <Copy className="h-4 w-4" />
                         </Button>
-                        {newPassword && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={handleCopyPassword}
-                            className="h-8 w-8 p-0 hover:bg-primary/10"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+                      )}
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleGeneratePassword}
-                      className="w-full h-10 border-primary/20 text-primary hover:bg-primary/10"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Generate Secure Password
-                    </Button>
                   </div>
-                  
-                  {createAccountError && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{createAccountError}</AlertDescription>
-                    </Alert>
-                  )}
-                  
-                  <div className="flex gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowCreateAccount(false);
-                        setNewEmail('');
-                        setNewPassword('');
-                        setCreateAccountError(null);
-                        setAccountCreated(false);
-                      }}
-                      className="flex-1 h-12"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={isCreatingAccount || !newEmail || !newPassword}
-                      className="flex-1 h-12 gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 font-semibold"
-                    >
-                      {isCreatingAccount ? 'Creating Account...' : 'Create Account'}
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            )}
-          </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleGeneratePassword}
+                    className="w-full h-10 border-primary/20 text-primary hover:bg-primary/10"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Generate Secure Password
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  <Label htmlFor="confirmPassword" className="text-base font-medium">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type={showNewPassword ? 'text' : 'password'}
+                    placeholder="Confirm your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
+                  />
+                </div>
+                
+                {createAccountError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{createAccountError}</AlertDescription>
+                  </Alert>
+                )}
+                
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowCreateAccount(false);
+                      setNewEmail('');
+                      setNewPassword('');
+                      setConfirmPassword('');
+                      setCreateAccountError(null);
+                      setAccountCreated(false);
+                    }}
+                    className="flex-1 h-12"
+                  >
+                    Back to Login
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isCreatingAccount || !newEmail || !newPassword || !confirmPassword}
+                    className="flex-1 h-12 gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 font-semibold"
+                  >
+                    {isCreatingAccount ? 'Creating Account...' : 'Create Account'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          )}
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             <div>

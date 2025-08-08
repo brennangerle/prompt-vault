@@ -33,15 +33,11 @@ export async function loginUser(email: string, password: string = 'password123')
     // Check if it's the super user account
     if (email === superUserAccount.email && password === superUserAccount.password) {
       console.log('Super user login detected');
-      // Try to sign in with Firebase Auth first, create if doesn't exist
       try {
         await signInWithEmailAndPassword(auth, email, password);
-        console.log('Super user Firebase auth successful');
       } catch (authError: any) {
         if (authError.code === 'auth/user-not-found' || authError.code === 'auth/invalid-credential') {
-          console.log('Creating Firebase auth for super user...');
           await createUserWithEmailAndPassword(auth, email, password);
-          console.log('Super user Firebase auth created');
         } else {
           throw authError;
         }
@@ -49,15 +45,12 @@ export async function loginUser(email: string, password: string = 'password123')
       return await createOrGetSuperUser();
     }
     
-    // Try to sign in with Firebase Auth
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
     
-    // Get or create user data in database
     let user = await getUserByEmail(email);
     
     if (!user) {
-      // Create new user if doesn't exist
       const testerData = testerAccounts[email as keyof typeof testerAccounts];
       const userData: Omit<User, 'id'> = {
         email,
@@ -68,7 +61,6 @@ export async function loginUser(email: string, password: string = 'password123')
       await createUserWithUid(firebaseUser.uid, userData);
       user = { id: firebaseUser.uid, ...userData };
       
-      // Add to team if it's a tester account
       if (testerData) {
         const teamMember: TeamMember = {
           id: firebaseUser.uid,
@@ -79,7 +71,6 @@ export async function loginUser(email: string, password: string = 'password123')
         await addTeamMember(testerData.teamId, teamMember);
       }
     } else {
-      // Ensure existing users have a role (backward compatibility)
       if (!user.role) {
         user.role = 'user';
       }
@@ -89,34 +80,18 @@ export async function loginUser(email: string, password: string = 'password123')
   } catch (error: any) {
     console.error('Login error details:', error);
     
-    // If user doesn't exist, check if it's super user or tester account
     if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-      // Check if it's a super user trying to login
-      if (email === superUserAccount.email && password === superUserAccount.password) {
-        return await createOrGetSuperUser();
-      }
-      
-      // Check if it's a tester account
       const testerData = testerAccounts[email as keyof typeof testerAccounts];
       if (testerData) {
         return await createTesterAccount(email);
       }
       
-      // For regular users, check if they exist in database but not in Firebase Auth
-      try {
-        const dbUser = await getUserByEmail(email);
-        if (dbUser) {
-          throw new Error('User exists in database but no Firebase Auth account. Please use "First time login" to set up your password.');
-        }
-      } catch (dbError: any) {
-        console.error('Database access error:', dbError);
-        if (dbError.code === 'PERMISSION_DENIED') {
-          throw new Error('Permission denied: Unable to verify user. Please check your authentication.');
-        }
+      const dbUser = await getUserByEmail(email);
+      if (dbUser) {
+        throw new Error('User exists in database but no Firebase Auth account. Please use "First time login" to set up your password.');
       }
     }
     
-    // Provide more specific error messages
     if (error.code === 'PERMISSION_DENIED') {
       throw new Error('Permission denied: Database access forbidden. Please contact administrator.');
     } else if (error.code === 'auth/invalid-credential') {
@@ -140,11 +115,9 @@ async function createTesterAccount(email: string): Promise<User> {
     throw new Error('Invalid tester account');
   }
   
-  // Create Firebase Auth user
   const userCredential = await createUserWithEmailAndPassword(auth, email, 'password123');
   const firebaseUser = userCredential.user;
   
-  // Create user data in database
   const userData: Omit<User, 'id'> = {
     email,
     teamId: testerData.teamId,
@@ -154,7 +127,6 @@ async function createTesterAccount(email: string): Promise<User> {
   await createUserWithUid(firebaseUser.uid, userData);
   const user = { id: firebaseUser.uid, ...userData };
   
-  // Add to team
   const teamMember: TeamMember = {
     id: firebaseUser.uid,
     email,
@@ -169,12 +141,10 @@ async function createTesterAccount(email: string): Promise<User> {
 async function createOrGetSuperUser(): Promise<User> {
   try {
     console.log('Attempting to get super user from database...');
-    // Check if super user already exists
     let user = await getUserByEmail(superUserAccount.email);
     
     if (!user) {
       console.log('Creating super user in database...');
-      // Create super user in database
       const userData: Omit<User, 'id'> = {
         email: superUserAccount.email,
         role: 'super_user'
@@ -189,18 +159,10 @@ async function createOrGetSuperUser(): Promise<User> {
       console.log('Super user created with ID:', firebaseUser.uid);
     } else {
       console.log('Super user found:', user);
-      // Ensure the role is set correctly
       if (user.role !== 'super_user') {
         console.log('Correcting super user role in database...');
-        await updateUser(user.id, { ...user, role: 'super_user' });
+        await updateUser(user.id, { role: 'super_user' });
         user.role = 'super_user';
-      }
-      
-      // Check if email verification entry exists, create if missing
-      const emailVerification = await verifyEmailExists(superUserAccount.email);
-      if (!emailVerification.exists) {
-        console.log('Creating missing email verification entry for super user...');
-        await createEmailVerificationEntry(superUserAccount.email, user.id);
       }
     }
     

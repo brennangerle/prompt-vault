@@ -68,7 +68,7 @@ export function OptimizePromptDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[625px]">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Optimize Prompt</DialogTitle>
           <DialogDescription>
@@ -96,20 +96,24 @@ export function OptimizePromptDialog({
         )}
 
         {result && (
-          <div className="space-y-4 py-4">
+          <div className="space-y-6 py-4">
             <div>
-              <h3 className="font-semibold text-foreground">Optimized Prompt</h3>
-              <p className="mt-2 rounded-md border bg-muted p-4 font-mono text-sm">
-                {result.optimizedPrompt}
-              </p>
+              <h3 className="font-semibold text-foreground mb-3">Optimized Prompt</h3>
+              <div className="max-h-96 overflow-y-auto rounded-md border bg-muted p-4">
+                <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
+                  {result.optimizedPrompt}
+                </pre>
+              </div>
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">Suggestions</h3>
-              <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-muted-foreground">
-                {result.suggestions.map((suggestion, index) => (
-                  <li key={index}>{suggestion}</li>
-                ))}
-              </ul>
+              <h3 className="font-semibold text-foreground mb-3">Suggestions</h3>
+              <div className="max-h-48 overflow-y-auto">
+                <ul className="list-inside list-disc space-y-2 text-sm text-muted-foreground">
+                  {result.suggestions.map((suggestion, index) => (
+                    <li key={index} className="leading-relaxed">{suggestion}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
         )}

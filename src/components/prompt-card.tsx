@@ -17,11 +17,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Check, Wand2, MoreVertical, Trash2, Pencil, BrainCircuit, Globe } from 'lucide-react';
+import { Copy, Check, Wand2, MoreVertical, Trash2, Pencil, BrainCircuit, Globe, Lock } from 'lucide-react';
 import type { Prompt } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { OptimizePromptDialog } from './optimize-prompt-dialog';
 import { EditPromptDialog } from './edit-prompt-dialog';
+import { DeletePromptDialog } from './delete-prompt-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { canEditPrompt, canDeletePrompt } from '@/lib/permissions';
@@ -74,16 +75,26 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
   };
 
   const handleGlobalShare = () => {
-    onUpdatePrompt({ ...prompt, sharing: 'global' });
-    toast({
-      title: 'Shared to Community',
-      description: 'Your prompt is now visible to everyone.',
-    });
+    if (prompt.sharing === 'global') {
+      // Unshare from community - return to private
+      onUpdatePrompt({ ...prompt, sharing: 'private' });
+      toast({
+        title: 'Removed from Community',
+        description: 'Your prompt is now private.',
+      });
+    } else {
+      // Share to community
+      onUpdatePrompt({ ...prompt, sharing: 'global' });
+      toast({
+        title: 'Shared to Community',
+        description: 'Your prompt is now visible to everyone.',
+      });
+    }
   };
 
   // Check if current user can edit/delete prompts
-  const canEdit = canEditPrompt(currentUser);
-  const canDelete = canDeletePrompt(currentUser);
+  const canEdit = canEditPrompt(currentUser, prompt);
+  const canDelete = canDeletePrompt(currentUser, prompt);
 
   return (
     <Card className="w-full group transition-all-smooth hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 border-0 glass-light">
@@ -112,18 +123,27 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
         </div>
         <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
           {canEdit && prompt.sharing !== 'global' && (
-            <div className="flex items-center space-x-3 bg-background/50 backdrop-blur-sm rounded-full px-3 py-2 border border-border/30">
-              <Switch
-                id={`sharing-switch-${prompt.id}`}
-                checked={prompt.sharing === 'team'}
-                onCheckedChange={handleSharingChange}
-                aria-label="Copy to team repository"
-              />
-              <Label htmlFor={`sharing-switch-${prompt.id}`} className="text-xs text-muted-foreground whitespace-nowrap font-medium">
-                {prompt.sharing === 'private' && 'Private'}
-                {prompt.sharing === 'team' && 'Team'}
-              </Label>
-            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center space-x-3 bg-background/50 backdrop-blur-sm rounded-full px-3 py-2 border border-border/30">
+                    <Switch
+                      id={`sharing-switch-${prompt.id}`}
+                      checked={prompt.sharing === 'team'}
+                      onCheckedChange={handleSharingChange}
+                      aria-label="Copy to team repository"
+                    />
+                    <Label htmlFor={`sharing-switch-${prompt.id}`} className="text-xs text-muted-foreground whitespace-nowrap font-medium">
+                      {prompt.sharing === 'private' && 'Private'}
+                      {prompt.sharing === 'team' && 'Team'}
+                    </Label>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Coming soon</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
 
           <TooltipProvider>
@@ -173,21 +193,29 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt, isEditable 
                 </OptimizePromptDialog>
                 {canEdit && (
                   <>
-                    <DropdownMenuItem onClick={handleGlobalShare} disabled={prompt.sharing === 'global'}>
-                      <Globe className="mr-2 h-4 w-4" />
-                      <span>Share to Community</span>
+                    <DropdownMenuItem onClick={handleGlobalShare}>
+                      {prompt.sharing === 'global' ? (
+                        <Lock className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Globe className="mr-2 h-4 w-4" />
+                      )}
+                      <span>
+                        {prompt.sharing === 'global' ? 'Remove from Community' : 'Share to Community'}
+                      </span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                   </>
                 )}
                 {canDelete && (
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={() => onDeletePrompt(prompt.id)}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    <span>Delete</span>
-                  </DropdownMenuItem>
+                  <DeletePromptDialog onDelete={() => onDeletePrompt(prompt.id)}>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      <span>Delete</span>
+                    </DropdownMenuItem>
+                  </DeletePromptDialog>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>

@@ -5,7 +5,6 @@ import {
   get, 
   remove, 
   onValue, 
-  off,
   query,
   orderByChild,
   equalTo,
@@ -59,18 +58,49 @@ export async function getUser(userId: string): Promise<User | null> {
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  console.log(`[getUserByEmail] Verifying email: ${email}`);
-  const emailVerification = await verifyEmailExists(email);
-  
-  if (emailVerification.exists && emailVerification.userId) {
-    console.log(`[getUserByEmail] Email verified, found userId: ${emailVerification.userId}`);
-    const user = await getUser(emailVerification.userId);
-    console.log(`[getUserByEmail] Found user:`, user);
-    return user;
+  try {
+    // Try direct query first (works when authenticated)
+    const usersRef = ref(database, 'users');
+    const userQuery = query(usersRef, orderByChild('email'), equalTo(email));
+    const snapshot = await get(userQuery);
+    
+    if (snapshot.exists()) {
+      const userData = snapshot.val();
+      const userId = Object.keys(userData)[0];
+      return { id: userId, ...userData[userId] };
+    }
+    return null;
+  } catch (error: any) {
+    // If permission denied, try email verification lookup (works without auth)
+    if (error.code === 'PERMISSION_DENIED') {
+      console.log('Permission denied on users query, trying email verification lookup');
+      const emailVerification = await verifyEmailExists(email);
+      
+      if (emailVerification.exists && emailVerification.userId) {
+        // Now try to get the user data directly if we have the userId
+        try {
+          const userRef = ref(database, `users/${emailVerification.userId}`);
+          const userSnapshot = await get(userRef);
+          
+          if (userSnapshot.exists()) {
+            return { id: emailVerification.userId, ...userSnapshot.val() };
+          }
+        } catch (userError) {
+          // If we still can't access user data, return a minimal user object
+          return {
+            id: emailVerification.userId,
+            email: emailVerification.email!,
+            teamId: emailVerification.teamId,
+            role: 'user'
+          } as User;
+        }
+      }
+      return null;
+    }
+    
+    // Re-throw other errors
+    throw error;
   }
-
-  console.log(`[getUserByEmail] Email not found in verification path: ${email}`);
-  return null;
 }
 
 export async function updateUser(userId: string, updates: Partial<User>): Promise<void> {
@@ -298,26 +328,36 @@ export async function getPrompt(promptId: string): Promise<Prompt | null> {
 }
 
 export async function updatePrompt(promptId: string, updates: Partial<Prompt>): Promise<void> {
-  // Check if current user has permission to edit prompts
-  const currentUser = await getCurrentUser();
-  if (!canEditPrompt(currentUser)) {
-    throw new Error('Unauthorized: Only the prompt keeper can edit prompts');
-  }
-
   const promptRef = ref(database, `prompts/${promptId}`);
   const snapshot = await get(promptRef);
   
-  if (snapshot.exists()) {
-    const currentData = snapshot.val();
-    await set(promptRef, { ...currentData, ...updates });
+  if (!snapshot.exists()) {
+    throw new Error('Prompt not found');
   }
+
+  const currentData = snapshot.val();
+  const prompt = { id: promptId, ...currentData };
+
+  // Check if current user has permission to edit this specific prompt
+  const currentUser = await getCurrentUser();
+  if (!canEditPrompt(currentUser, prompt)) {
+    throw new Error('Unauthorized: You can only edit prompts you created');
+  }
+
+  await set(promptRef, { ...currentData, ...updates });
 }
 
 export async function deletePrompt(promptId: string): Promise<void> {
-  // Check if current user has permission to delete prompts
+  // Get the prompt first to check ownership
+  const prompt = await getPrompt(promptId);
+  if (!prompt) {
+    throw new Error('Prompt not found');
+  }
+
+  // Check if current user has permission to delete this specific prompt
   const currentUser = await getCurrentUser();
-  if (!canDeletePrompt(currentUser)) {
-    throw new Error('Unauthorized: Only the prompt keeper can delete prompts');
+  if (!canDeletePrompt(currentUser, prompt)) {
+    throw new Error('Unauthorized: You can only delete prompts you created');
   }
 
   const promptRef = ref(database, `prompts/${promptId}`);
@@ -379,7 +419,7 @@ export async function getPromptsBySharing(
   return [];
 }
 
-""// Real-time listeners
+// Real-time listeners
 export function subscribeToPrompts(
   callback: (prompts: Prompt[]) => void,
   userId?: string,
@@ -403,7 +443,7 @@ export function subscribeToPrompts(
         callback([]);
       }
     });
-    return () => off(promptsRef, 'value', unsubscribe);
+    return unsubscribe;
   }
 
   if (sharing === 'team' && userTeamId) {
@@ -446,8 +486,8 @@ export function subscribeToPrompts(
     });
 
     return () => {
-      off(teamPromptsRef, 'value', teamUnsubscribe);
-      off(globalPromptsRef, 'value', globalUnsubscribe);
+      teamUnsubscribe();
+      globalUnsubscribe();
     };
   }
 
@@ -465,7 +505,7 @@ export function subscribeToPrompts(
         callback([]);
       }
     });
-    return () => off(promptsRef, 'value', unsubscribe);
+    return unsubscribe;
   }
 
   // Fallback for any other case
@@ -482,8 +522,8 @@ export function subscribeToPrompts(
       callback([]);
     }
   });
-  return () => off(promptsRef, 'value', unsubscribe);
-}""
+  return unsubscribe;
+}
 
 export function subscribeToTeamMembers(
   teamId: string,
@@ -504,5 +544,5 @@ export function subscribeToTeamMembers(
     }
   });
   
-  return () => off(teamRef, 'value', unsubscribe);
+  return unsubscribe;
 }
