@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Check, Wand2, MoreVertical, Trash2, Pencil, BrainCircuit, Globe, Lock } from 'lucide-react';
+import { Copy, Check, Wand2, MoreVertical, Trash2, Pencil, BrainCircuit, Globe, Lock, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Prompt } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { OptimizePromptDialog } from './optimize-prompt-dialog';
@@ -27,6 +27,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { canEditPrompt, canDeletePrompt } from '@/lib/permissions';
 import { useUser } from '@/lib/user-context';
+import clsx from 'clsx';
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -38,6 +39,7 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
   const [isCopied, setIsCopied] = React.useState(false);
   const { currentUser } = useUser();
   const { toast } = useToast();
+  const [isExpanded, setIsExpanded] = React.useState(false);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -97,12 +99,28 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
     <Card className="w-full group transition-all-smooth hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 border-0 glass-light">
       <div className="flex flex-col sm:flex-row sm:items-start p-6 gap-4">
         <div className="flex-1 space-y-4">
-          <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors duration-300">{prompt.title}</CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors duration-300 truncate">{prompt.title}</CardTitle>
           <div className="relative">
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap font-mono bg-muted/60 backdrop-blur-sm p-4 rounded-lg border border-border/50 leading-relaxed">
+            <p
+              className={clsx(
+                'text-sm text-muted-foreground whitespace-pre-wrap font-mono bg-muted/60 backdrop-blur-sm p-4 rounded-lg border border-border/50 leading-relaxed transition-[max-height] duration-200',
+                isExpanded ? 'max-h-none' : 'max-h-24 overflow-hidden sm:max-h-none sm:overflow-visible'
+              )}
+            >
               {prompt.content}
             </p>
             <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+          </div>
+          <div className="sm:hidden">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs gap-1 rounded-full"
+              onClick={() => setIsExpanded((v) => !v)}
+            >
+              {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              {isExpanded ? 'Hide' : 'Show'}
+            </Button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {prompt.tags.map((tag) => (
