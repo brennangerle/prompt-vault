@@ -48,7 +48,8 @@ import {
   deleteTeam,
   getAllUsers,
   createUser,
-  updateUser
+  updateUser,
+  getTeam
 } from '@/lib/db';
 import { logoutUser, sendPasswordReset } from '@/lib/auth';
 import { useUser } from '@/lib/user-context';
@@ -69,6 +70,8 @@ export default function SettingsPage() {
   const [teamInputValues, setTeamInputValues] = React.useState<Record<string, string>>({});
   const [expandedTeams, setExpandedTeams] = React.useState<Record<string, boolean>>({});
   const [expandedUsersList, setExpandedUsersList] = React.useState(true);
+  
+  const [currentTeamName, setCurrentTeamName] = React.useState<string | null>(null);
   
   const router = useRouter();
   const { toast } = useToast();
@@ -110,6 +113,20 @@ export default function SettingsPage() {
     });
     
     return unsubscribe;
+  }, [currentUser?.teamId]);
+
+  // Load current team name for non-super users
+  React.useEffect(() => {
+    const loadTeamName = async () => {
+      if (!currentUser?.teamId) return;
+      try {
+        const team = await getTeam(currentUser.teamId);
+        setCurrentTeamName(team?.name ?? null);
+      } catch (err) {
+        console.error('Failed to load team name:', err);
+      }
+    };
+    loadTeamName();
   }, [currentUser?.teamId]);
 
   const handleAddMember = async (e: React.FormEvent) => {
@@ -620,7 +637,7 @@ export default function SettingsPage() {
                           <div className="flex items-center gap-2">
                             {user.teamId && (
                               <Badge variant="outline">
-                                Team: {teams.find(t => t.id === user.teamId)?.name || user.teamId}
+                                Team: {teams.find(t => t.id === user.teamId)?.name || 'Unknown Team'}
                               </Badge>
                             )}
                             {!user.teamId && user.role !== 'super_user' && (
@@ -685,7 +702,7 @@ export default function SettingsPage() {
               {/* Add Team Member */}
               {isUserAdminState && currentUser?.teamId && (
                 <div className="space-y-4 p-6 bg-background/50 backdrop-blur-sm rounded-xl border border-border/30">
-                  <Label className="text-lg font-semibold">Add Team Member to {teams.find(t => t.id === currentUser?.teamId)?.name || currentUser?.teamId?.toUpperCase()}</Label>
+                  <Label className="text-lg font-semibold">Add Team Member to {currentTeamName || teams.find(t => t.id === currentUser?.teamId)?.name || 'Team'}</Label>
                   <form onSubmit={handleAddMember} className="flex gap-3">
                     <Input
                       type="email"
@@ -705,7 +722,7 @@ export default function SettingsPage() {
               {/* Team Members List */}
               <div className="space-y-4">
                 <Label className="text-lg font-semibold">
-                  {teams.find(t => t.id === currentUser?.teamId)?.name || currentUser?.teamId?.toUpperCase()} Members ({teamMembers.length})
+                  {currentTeamName || teams.find(t => t.id === currentUser?.teamId)?.name || 'Team'} Members ({teamMembers.length})
                 </Label>
                 <div className="space-y-3">
                   {teamMembers.map((member) => (
