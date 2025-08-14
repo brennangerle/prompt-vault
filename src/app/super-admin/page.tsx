@@ -91,6 +91,20 @@ export default function SuperAdminPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  // Helper function to get user name from ID
+  const getUserName = (userId: string): string => {
+    if (!userId) return 'Unknown User';
+    const user = users.find(u => u.id === userId);
+    return user?.email || `User ID: ${userId}`;
+  };
+
+  // Helper function to get team name from ID
+  const getTeamName = (teamId: string): string => {
+    if (!teamId) return 'Unknown Team';
+    const team = teams.find(t => t.id === teamId);
+    return team?.name || `Team ID: ${teamId}`;
+  };
+
   React.useEffect(() => {
     const initData = async () => {
       try {
@@ -1275,7 +1289,7 @@ Review the following code and provide feedback on best practices, potential bugs
                         <div>
                           <h4 className="font-semibold">{prompt.title}</h4>
                           <p className="text-sm text-muted-foreground">
-                            {prompt.tags.join(', ')} • Created by {prompt.createdBy}
+                            {prompt.tags.join(', ')} • Created by {getUserName(prompt.createdBy || '')}
                           </p>
                         </div>
                         <Badge variant="outline">Community</Badge>
