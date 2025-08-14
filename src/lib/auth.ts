@@ -183,9 +183,19 @@ export function subscribeToAuthState(callback: (user: FirebaseUser | null) => vo
 
 export async function getCurrentUser(): Promise<User | null> {
   const firebaseUser = auth.currentUser;
-  if (!firebaseUser) return null;
+  if (!firebaseUser || !firebaseUser.email) return null;
   
-  return await getUserByEmail(firebaseUser.email!);
+  try {
+    return await getUserByEmail(firebaseUser.email);
+  } catch (error: any) {
+    console.error('Error fetching user data:', error);
+    // If we get a permission denied error, it likely means we're not fully authenticated yet
+    if (error.code === 'PERMISSION_DENIED') {
+      console.log('Permission denied - user not fully authenticated yet');
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function sendPasswordReset(email: string): Promise<void> {
