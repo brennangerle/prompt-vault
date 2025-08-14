@@ -9,7 +9,7 @@ import {
   sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { createUser, createUserWithUid, getUserByEmail, addTeamMember, verifyEmailExists, createEmailVerificationEntry, updateUser } from './db';
+import { createUser, createUserWithUid, getUserByEmail, addTeamMember, verifyEmailExists, createEmailVerificationEntry, updateUser, getUser } from './db';
 import type { User, TeamMember } from './types';
 
 // Predefined tester accounts
@@ -48,7 +48,12 @@ export async function loginUser(email: string, password: string = 'password123')
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
     
-    let user = await getUserByEmail(email);
+    // Prefer UID-based lookup after sign-in to avoid collection query permissions
+    let user = await getUser(firebaseUser.uid);
+    if (!user) {
+      // Fallback to email-based lookup if needed
+      user = await getUserByEmail(email);
+    }
     
     if (!user) {
       const testerData = testerAccounts[email as keyof typeof testerAccounts];
@@ -185,6 +190,11 @@ export async function getCurrentUser(): Promise<User | null> {
   const firebaseUser = auth.currentUser;
   if (!firebaseUser) return null;
   
+  // Prefer UID read
+  const byUid = await getUser(firebaseUser.uid);
+  if (byUid) return byUid;
+  
+  // Fallback to email query
   return await getUserByEmail(firebaseUser.email!);
 }
 
