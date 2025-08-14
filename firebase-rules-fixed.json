@@ -17,7 +17,7 @@
     
     "users": {
       ".indexOn": ["email"],
-      ".read": "auth != null && query.orderByChild == 'email' && query.equalTo == auth.token.email",
+      ".read": "auth != null && (query.orderByChild == 'email' && query.equalTo == auth.token.email || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
       
       "$userId": {
         ".read": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
@@ -27,6 +27,7 @@
     },
     
     "teams": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
       "$teamId": {
         ".read": "auth != null && (root.child('teams').child($teamId).child('members').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
         ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
@@ -46,6 +47,7 @@
     
     "prompts": {
       ".indexOn": ["createdBy", "sharing", "teamId"],
+      ".read": "auth != null",
       "$promptId": {
         ".read": "auth != null && (data.child('sharing').val() == 'global' || data.child('createdBy').val() == auth.uid || (data.child('sharing').val() == 'team' && data.child('teamId').exists() && root.child('users').child(auth.uid).child('teamId').val() == data.child('teamId').val()) || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
         ".write": "auth != null && ((!data.exists() && newData.child('createdBy').val() == auth.uid) || (data.exists() && (data.child('createdBy').val() == auth.uid || root.child('users').child(auth.uid).child('role').val() == 'super_user')))",
