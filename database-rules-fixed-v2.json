@@ -1,0 +1,60 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    
+    "public": {
+      ".read": true,
+      ".write": false
+    },
+    
+    "email-verification": {
+      ".read": true,
+      ".write": "auth != null",
+      "$id": {
+        ".read": true,
+        ".write": false
+      }
+    },
+    
+    "users": {
+      ".indexOn": ["email"],
+      ".read": "auth != null",
+      
+      "$userId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
+        ".validate": "((!data.exists() && auth.uid == $userId && newData.child('role').val() != 'super_user') || (data.exists() && (root.child('users').child(auth.uid).child('role').val() == 'super_user' || (auth.uid == $userId && newData.child('role').val() == data.child('role').val()))))"
+      }
+    },
+    
+    "teams": {
+      ".read": "auth != null",
+      "$teamId": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
+        "members": {
+          ".read": "auth != null",
+          ".write": "auth != null && (root.child('teams').child($teamId).child('members').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
+          "$memberId": {
+            ".read": "auth != null",
+            ".write": "auth != null && (root.child('teams').child($teamId).child('members').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
+            "role": {
+              ".validate": "newData.val().matches(/^(member|admin)$/)"
+            }
+          }
+        }
+      }
+    },
+    
+    "prompts": {
+      ".indexOn": ["createdBy", "sharing", "teamId"],
+      ".read": "auth != null",
+      "$promptId": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((!data.exists() && newData.child('createdBy').val() == auth.uid) || (data.exists() && (data.child('createdBy').val() == auth.uid || root.child('users').child(auth.uid).child('role').val() == 'super_user')))",
+        ".validate": "newData.hasChildren(['title','content','tags','sharing','createdBy']) && newData.child('sharing').val().matches(/^(private|team|global)$/) && (newData.child('sharing').val() != 'team' || (newData.hasChild('teamId') && root.child('users').child(newData.child('createdBy').val()).child('teamId').val() == newData.child('teamId').val())) && (newData.child('createdBy').val() == (data.exists() ? data.child('createdBy').val() : auth.uid))"
+      }
+    }
+  }
+}
