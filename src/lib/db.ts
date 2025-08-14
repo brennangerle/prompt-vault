@@ -9,7 +9,8 @@ import {
   orderByChild,
   equalTo,
   Query,
-  DatabaseReference
+  DatabaseReference,
+  update
 } from 'firebase/database';
 import { database } from './firebase';
 import type { Prompt, User, TeamMember, Team } from './types';
@@ -27,12 +28,16 @@ export async function createUser(userData: Omit<User, 'id'>): Promise<string> {
   console.log('Creating user with data:', userData);
   const usersRef = ref(database, 'users');
   const newUserRef = push(usersRef);
-  await set(newUserRef, userData);
+  const normalizedUserData: Omit<User, 'id'> = {
+    ...userData,
+    email: userData.email.toLowerCase()
+  };
+  await set(newUserRef, normalizedUserData);
   console.log('User created with ID:', newUserRef.key);
   
   // Also create email verification entry for first-time login
-  console.log('Creating email verification entry for user:', userData.email);
-  await createEmailVerificationEntry(userData.email, newUserRef.key!, userData.teamId);
+  console.log('Creating email verification entry for user:', normalizedUserData.email);
+  await createEmailVerificationEntry(normalizedUserData.email, newUserRef.key!, normalizedUserData.teamId);
   
   return newUserRef.key!;
 }
@@ -40,12 +45,16 @@ export async function createUser(userData: Omit<User, 'id'>): Promise<string> {
 export async function createUserWithUid(userId: string, userData: Omit<User, 'id'>): Promise<void> {
   console.log('Creating user with data for UID:', userId, userData);
   const userRef = ref(database, `users/${userId}`);
-  await set(userRef, userData);
+  const normalizedUserData: Omit<User, 'id'> = {
+    ...userData,
+    email: userData.email.toLowerCase()
+  };
+  await set(userRef, normalizedUserData);
   console.log('User created with ID:', userId);
 
   // Also create email verification entry for first-time login
-  console.log('Creating email verification entry for user:', userData.email);
-  await createEmailVerificationEntry(userData.email, userId, userData.teamId);
+  console.log('Creating email verification entry for user:', normalizedUserData.email);
+  await createEmailVerificationEntry(normalizedUserData.email, userId, normalizedUserData.teamId);
 }
 
 export async function getUser(userId: string): Promise<User | null> {
@@ -59,9 +68,10 @@ export async function getUser(userId: string): Promise<User | null> {
 
 export async function getUserByEmail(email: string): Promise<User | null> {
   try {
+    const normalizedEmail = email.toLowerCase();
     // Try direct query first (works when authenticated)
     const usersRef = ref(database, 'users');
-    const userQuery = query(usersRef, orderByChild('email'), equalTo(email));
+    const userQuery = query(usersRef, orderByChild('email'), equalTo(normalizedEmail));
     const snapshot = await get(userQuery);
     
     if (snapshot.exists()) {
@@ -109,9 +119,14 @@ export async function updateUser(userId: string, updates: Partial<User>): Promis
   // Filter out undefined values to prevent Firebase errors
   const filteredUpdates = Object.fromEntries(
     Object.entries(updates).filter(([_, value]) => value !== undefined)
-  );
+  ) as Partial<User>;
+
+  // Normalize email if present
+  if (filteredUpdates.email) {
+    filteredUpdates.email = filteredUpdates.email.toLowerCase();
+  }
   
-  await set(userRef, filteredUpdates);
+  await update(userRef, filteredUpdates as any);
 }
 
 // Team operations
@@ -223,12 +238,13 @@ export async function getAllUsers(): Promise<User[]> {
 // Special function for email verification during first-time login
 // This creates a copy of user email data in a publicly readable location
 export async function createEmailVerificationEntry(email: string, userId: string, teamId?: string): Promise<void> {
-  const emailKey = email.replace(/[.@]/g, '_'); // Firebase keys can't contain . or @
+  const normalizedEmail = email.toLowerCase();
+  const emailKey = normalizedEmail.replace(/[.@]/g, '_'); // Firebase keys can't contain . or @
   const verificationRef = ref(database, `email-verification/${emailKey}`);
   
   // Create data object, only including teamId if it exists
   const verificationData: any = {
-    email: email,
+    email: normalizedEmail,
     userId: userId,
     createdAt: new Date().toISOString()
   };
@@ -238,15 +254,16 @@ export async function createEmailVerificationEntry(email: string, userId: string
     verificationData.teamId = teamId;
   }
   
-  console.log('Creating email verification entry:', { email, emailKey, userId, teamId, verificationData });
+  console.log('Creating email verification entry:', { email: normalizedEmail, emailKey, userId, teamId, verificationData });
   await set(verificationRef, verificationData);
   console.log('Email verification entry created successfully');
 }
 
 export async function verifyEmailExists(email: string): Promise<{ exists: boolean; userId?: string; email?: string; teamId?: string }> {
-  const emailKey = email.replace(/[.@]/g, '_');
+  const normalizedEmail = email.toLowerCase();
+  const emailKey = normalizedEmail.replace(/[.@]/g, '_');
   const verificationRef = ref(database, `email-verification/${emailKey}`);
-  console.log('Checking email verification for:', { email, emailKey, path: `email-verification/${emailKey}` });
+  console.log('Checking email verification for:', { email: normalizedEmail, emailKey, path: `email-verification/${emailKey}` });
   
   const snapshot = await get(verificationRef);
   console.log('Email verification snapshot exists:', snapshot.exists());
