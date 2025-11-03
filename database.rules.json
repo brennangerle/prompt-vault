@@ -44,6 +44,7 @@
         }
       }
     },
+    
     "prompts": {
       ".indexOn": ["createdBy", "sharing", "teamId"],
       ".read": "auth != null",
