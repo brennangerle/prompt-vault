@@ -23,8 +23,6 @@ import { useToast } from '@/hooks/use-toast';
 import { OptimizePromptDialog } from './optimize-prompt-dialog';
 import { EditPromptDialog } from './edit-prompt-dialog';
 import { DeletePromptDialog } from './delete-prompt-dialog';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { canEditPrompt, canDeletePrompt } from '@/lib/permissions';
 import { useUser } from '@/lib/user-context';
 import clsx from 'clsx';
@@ -53,26 +51,6 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
     onUpdatePrompt({ ...prompt, content: newContent });
   };
 
-  const handleSharingChange = (isTeam: boolean) => {
-    if (prompt.sharing !== 'global' && canEdit) {
-      const updates: Partial<Prompt> = {
-        sharing: isTeam ? 'team' : 'private'
-      };
-
-      // When enabling team sharing, ensure teamId exists on the prompt by inheriting current user's teamId
-      if (isTeam && !prompt.teamId && currentUser?.teamId) {
-        updates.teamId = currentUser.teamId;
-      }
-      
-      onUpdatePrompt({ ...prompt, ...updates });
-      
-      toast({
-        title: isTeam ? 'Copied to Team' : 'Moved to Private',
-        description: isTeam ? 'Your prompt is now visible to your team.' : 'Your prompt is now private.',
-      });
-    }
-  };
-
   const handleGlobalShare = () => {
     if (prompt.sharing === 'global') {
       // Unshare from community - return to private
@@ -97,83 +75,63 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
 
   return (
     <Card className="w-full group transition-all-smooth hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 border-0 glass-light">
-      <div className="flex flex-col sm:flex-row sm:items-start p-6 gap-4">
-        <div className="flex-1 space-y-4">
-          <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors duration-300 truncate">{prompt.title}</CardTitle>
-          <div className="relative">
-            <p
-              className={clsx(
-                'text-sm text-muted-foreground whitespace-pre-wrap font-mono bg-muted/60 backdrop-blur-sm p-4 rounded-lg border border-border/50 leading-relaxed transition-[max-height] duration-200',
-                isExpanded ? 'max-h-none' : 'max-h-24 overflow-hidden sm:max-h-none sm:overflow-visible'
+      {/* Collapsed View - Always visible */}
+      <div className="flex items-center justify-between p-4 gap-4">
+        <div className="flex-1 min-w-0">
+          <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors duration-300 truncate pr-2">{prompt.title}</CardTitle>
+          {isExpanded && (
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              {prompt.tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="bg-secondary/80 hover:bg-secondary transition-colors duration-200 font-medium text-xs">
+                  {tag}
+                </Badge>
+              ))}
+              {prompt.software && (
+                <Badge variant="outline" className="gap-1.5 pl-2 border-primary/30 text-primary hover:bg-primary/10 transition-colors duration-200">
+                  <BrainCircuit className="h-3.5 w-3.5" />
+                  {prompt.software}
+                </Badge>
               )}
-            >
-              {prompt.content}
-            </p>
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-          </div>
-          <div className="sm:hidden">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-xs gap-1 rounded-full"
-              onClick={() => setIsExpanded((v) => !v)}
-            >
-              {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              {isExpanded ? 'Hide' : 'Show'}
-            </Button>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {prompt.tags.map((tag) => (
-              <Badge key={tag} variant="secondary" className="bg-secondary/80 hover:bg-secondary transition-colors duration-200 font-medium">
-                {tag}
-              </Badge>
-            ))}
-            {prompt.software && (
-              <Badge variant="outline" className="gap-1.5 pl-2 border-primary/30 text-primary hover:bg-primary/10 transition-colors duration-200">
-                <BrainCircuit className="h-3.5 w-3.5" />
-                {prompt.software}
-              </Badge>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
-          {canEdit && prompt.sharing !== 'global' && (
+        
+        <div className="flex items-center gap-2 shrink-0">
+            {/* Sharing indicator */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center space-x-3 bg-background/50 backdrop-blur-sm rounded-full px-3 py-2 border border-border/30">
-                    <Switch
-                      id={`sharing-switch-${prompt.id}`}
-                      checked={prompt.sharing === 'team'}
-                      onCheckedChange={handleSharingChange}
-                      aria-label="Copy to team repository"
-                    />
-                    <Label htmlFor={`sharing-switch-${prompt.id}`} className="text-xs text-muted-foreground whitespace-nowrap font-medium">
-                      {prompt.sharing === 'private' && 'Private'}
-                      {prompt.sharing === 'team' && 'Team'}
-                    </Label>
+                  <div className="flex items-center space-x-2 bg-background/50 backdrop-blur-sm rounded-full px-2.5 py-1.5 border border-border/30">
+                    {prompt.sharing === 'global' ? (
+                      <Globe className="h-3 w-3 text-emerald-500" />
+                    ) : (
+                      <Lock className="h-3 w-3 text-muted-foreground" />
+                    )}
+                    <span className={`text-xs font-medium ${prompt.sharing === 'global' ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                      {prompt.sharing === 'global' ? 'Community' : 'Private'}
+                    </span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Toggle to share with your team</p>
+                  <p>{prompt.sharing === 'global' ? 'Shared with the community' : 'Visible only to you'}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          )}
 
+          {/* Copy Button */}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/10 hover:glow-primary transition-all duration-300 border border-border/30"
+                  className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/10 hover:glow-primary transition-all duration-300 border border-border/30"
                   onClick={handleCopy}
                 >
                   {isCopied ? (
-                    <Check className="h-4 w-4 text-primary" />
+                    <Check className="h-3.5 w-3.5 text-primary" />
                   ) : (
-                    <Copy className="h-4 w-4 group-hover:text-primary transition-colors duration-300" />
+                    <Copy className="h-3.5 w-3.5 group-hover:text-primary transition-colors duration-300" />
                   )}
                 </Button>
               </TooltipTrigger>
@@ -183,11 +141,35 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
             </Tooltip>
           </TooltipProvider>
 
+          {/* Expand/Collapse Button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/10 transition-all duration-300 border border-border/30"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                >
+                  {isExpanded ? (
+                    <ChevronUp className="h-3.5 w-3.5 group-hover:text-primary transition-colors duration-300" />
+                  ) : (
+                    <ChevronDown className="h-3.5 w-3.5 group-hover:text-primary transition-colors duration-300" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isExpanded ? 'Collapse' : 'Expand'} content</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* 3-Dots Menu */}
           {canEdit && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/10 transition-all duration-300 border border-border/30 shrink-0">
-                  <MoreVertical className="h-4 w-4 group-hover:text-primary transition-colors duration-300" />
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/10 transition-all duration-300 border border-border/30 shrink-0">
+                  <MoreVertical className="h-3.5 w-3.5 group-hover:text-primary transition-colors duration-300" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -237,6 +219,18 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
           )}
         </div>
       </div>
+
+      {/* Expanded View - Only visible when expanded */}
+      {isExpanded && (
+        <div className="px-4 pb-4 space-y-4 border-t border-border/20 pt-4">
+          <div className="relative">
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap font-mono bg-muted/60 backdrop-blur-sm p-4 rounded-lg border border-border/50 leading-relaxed">
+              {prompt.content}
+            </p>
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

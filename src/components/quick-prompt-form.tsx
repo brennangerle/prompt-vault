@@ -29,7 +29,7 @@ const promptFormSchema = z.object({
 type PromptFormValues = z.infer<typeof promptFormSchema>;
 
 interface QuickPromptFormProps {
-  onAddPrompt: (prompt: Omit<Prompt, 'id' | 'sharing' | 'createdBy' | 'teamId'>) => void;
+  onAddPrompt: (prompt: Omit<Prompt, 'id' | 'sharing' | 'createdBy' | 'createdAt'>) => void;
 }
 
 export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {

@@ -188,7 +188,7 @@ export function subscribeToAuthState(callback: (user: FirebaseUser | null) => vo
 
 export async function getCurrentUser(): Promise<User | null> {
   const firebaseUser = auth.currentUser;
-  if (!firebaseUser) return null;
+  if (!firebaseUser || !firebaseUser.email) return null;
   
   // Prefer UID read
   const byUid = await getUser(firebaseUser.uid);

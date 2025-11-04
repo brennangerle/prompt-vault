@@ -228,7 +228,7 @@ export default function FirstTimeLoginPage() {
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">{email}</p>
                   {user?.teamId && (
-                    <p className="text-sm text-muted-foreground">Team: {team?.name || user.teamId}</p>
+                    <p className="text-sm text-muted-foreground">Team: {team?.name || 'Loading team info...'}</p>
                   )}
                 </div>
 

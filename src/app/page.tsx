@@ -7,7 +7,6 @@ import {
   Folder,
   Globe,
   User as UserIcon,
-  Users,
   Settings,
   Crown,
 } from 'lucide-react';
@@ -42,12 +41,11 @@ import { useUser } from '@/lib/user-context';
 import { isSuperUser, canEditPrompt, canDeletePrompt } from '@/lib/permissions';
 import type { User } from '@/lib/types';
 
-type SharingScope = 'private' | 'team' | 'community';
+type SharingScope = 'private' | 'community';
 
 const scopeData: { id: SharingScope; label: string; icon: React.ElementType; description: string; disabled?: boolean; }[] = [
-  { id: 'private', label: 'My Prompt Repository', icon: UserIcon, description: 'Your personal collection. All prompts you created, regardless of sharing level.' },
-  { id: 'team', label: 'Team Repository', icon: Users, description: "Team prompts from your team plus community prompts." },
-  { id: 'community', label: 'Community Showcase', icon: Globe, description: 'Discover prompts shared by the entire community.' },
+  { id: 'private', label: 'My Prompt Library', icon: UserIcon, description: 'Your personal collection of prompts you created.' },
+  { id: 'community', label: 'Community Library', icon: Globe, description: 'Discover prompts shared with the entire community.' },
 ];
 
 export default function PromptKeeperPage() {
@@ -68,11 +66,6 @@ export default function PromptKeeperPage() {
       unsubscribe = subscribeToPrompts((userPrompts) => {
         setPrompts(userPrompts);
       }, currentUser.id);
-    } else if (selectedScope === 'team') {
-      // Subscribe to team prompts (team + global with cascading access)
-      unsubscribe = subscribeToPrompts((teamPrompts) => {
-        setPrompts(teamPrompts);
-      }, undefined, 'team', currentUser.teamId);
     } else if (selectedScope === 'community') {
       // Subscribe to community prompts (global only)
       unsubscribe = subscribeToPrompts((globalPrompts) => {
@@ -83,14 +76,13 @@ export default function PromptKeeperPage() {
     return unsubscribe;
   }, [selectedScope, currentUser]);
 
-  const addPrompt = async (prompt: Omit<Prompt, 'id' | 'sharing' | 'createdBy' | 'teamId' | 'createdAt'>) => {
+  const addPrompt = async (prompt: Omit<Prompt, 'id' | 'sharing' | 'createdBy' | 'createdAt'>) => {
     if (!currentUser) return;
     
     const newPrompt: Omit<Prompt, 'id'> = { 
       ...prompt, 
       sharing: 'private',
-      createdBy: currentUser.id,
-      ...(currentUser.teamId && { teamId: currentUser.teamId })
+      createdBy: currentUser.id
     };
     
     try {
@@ -251,18 +243,18 @@ export default function PromptKeeperPage() {
               <SidebarTrigger className="md:hidden h-10 w-10 rounded-xl hover:bg-primary/10 transition-all duration-300"/>
               <div>
                 <h1 className="text-3xl font-bold text-foreground bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-                  {scopeData.find(s => s.id === selectedScope)?.label}
+                    {scopeData.find(s => s.id === selectedScope)?.label}
                 </h1>
                 <p className="text-muted-foreground mt-1 font-medium">
-                  {selectedTag === 'All'
-                    ? scopeData.find(s => s.id === selectedScope)?.description
-                    : `Prompts tagged with "${selectedTag}"`}
+                    {selectedTag === 'All'
+                      ? scopeData.find(s => s.id === selectedScope)?.description
+                      : `Prompts tagged with "${selectedTag}"`}
                 </p>
               </div>
             </div>
           </header>
           <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto space-y-8">
-            {selectedScope === 'private' && <QuickPromptForm onAddPrompt={addPrompt} />}
+              {selectedScope === 'private' && <QuickPromptForm onAddPrompt={addPrompt} />}
             {filteredPrompts.length > 0 ? (
               <div className="flex flex-col gap-6">
                 {filteredPrompts.map((prompt) => (

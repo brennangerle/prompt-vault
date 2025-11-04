@@ -21,9 +21,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = subscribeToAuthState(async (firebaseUser) => {
       if (firebaseUser) {
         // User is authenticated, get their data
-        const userData = await getCurrentUser();
-        setCurrentUser(userData);
-        setIsAuthenticated(true);
+        try {
+          const userData = await getCurrentUser();
+          setCurrentUser(userData);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error('Failed to get user data:', error);
+          // If we can't get user data, still mark as authenticated but no user data
+          setCurrentUser(null);
+          setIsAuthenticated(true);
+        }
       } else {
         // User is not authenticated
         setCurrentUser(null);

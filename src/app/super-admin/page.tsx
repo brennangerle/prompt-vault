@@ -79,17 +79,29 @@ export default function SuperAdminPage() {
   const [newPromptTitle, setNewPromptTitle] = React.useState('');
   const [newPromptContent, setNewPromptContent] = React.useState('');
   const [newPromptTags, setNewPromptTags] = React.useState('');
-  const [selectedTeamForPrompt, setSelectedTeamForPrompt] = React.useState<string>('');
-  const [promptSharing, setPromptSharing] = React.useState<'team' | 'global'>('global');
+  const [promptSharing, setPromptSharing] = React.useState<'private' | 'global'>('global');
   const [expandedTeams, setExpandedTeams] = React.useState<Record<string, boolean>>({});
   const [teamInputValues, setTeamInputValues] = React.useState<Record<string, string>>({});
   const [isFixingEmailVerification, setIsFixingEmailVerification] = React.useState(false);
   const [bulkPromptText, setBulkPromptText] = React.useState('');
-  const [bulkPromptSharing, setBulkPromptSharing] = React.useState<'team' | 'global'>('global');
-  const [selectedTeamForBulkPrompts, setSelectedTeamForBulkPrompts] = React.useState<string>('');
+  const [bulkPromptSharing, setBulkPromptSharing] = React.useState<'private' | 'global'>('global');
   const [isProcessingBulkPrompts, setIsProcessingBulkPrompts] = React.useState(false);
   const router = useRouter();
   const { toast } = useToast();
+
+  // Helper function to get user name from ID
+  const getUserName = (userId: string): string => {
+    if (!userId) return 'Unknown User';
+    const user = users.find(u => u.id === userId);
+    return user?.email || `User ID: ${userId}`;
+  };
+
+  // Helper function to get team name from ID
+  const getTeamName = (teamId: string): string => {
+    if (!teamId) return 'Unknown Team';
+    const team = teams.find(t => t.id === teamId);
+    return team?.name || `Team ID: ${teamId}`;
+  };
 
   React.useEffect(() => {
     const initData = async () => {
@@ -181,25 +193,23 @@ export default function SuperAdminPage() {
         content: newPromptContent.trim(),
         tags: newPromptTags.split(',').map(tag => tag.trim()).filter(Boolean),
         sharing: promptSharing,
-        createdBy: currentUser.id,
-        ...(promptSharing === 'team' && selectedTeamForPrompt && { teamId: selectedTeamForPrompt })
+        createdBy: currentUser.id
       };
-      
+
       await createPrompt(promptData);
-      
+
       // Refresh community prompts if global
       if (promptSharing === 'global') {
         const updatedCommunityPrompts = await getPromptsBySharing('global');
         setCommunityPrompts(updatedCommunityPrompts);
       }
-      
+
       // Reset form
       setNewPromptTitle('');
       setNewPromptContent('');
       setNewPromptTags('');
-      setSelectedTeamForPrompt('');
       setPromptSharing('global');
-      
+
       toast({
         title: 'Prompt created',
         description: `Prompt "${newPromptTitle}" has been created successfully.`,
@@ -308,8 +318,7 @@ export default function SuperAdminPage() {
             content: promptData.content,
             tags: promptData.tags,
             sharing: bulkPromptSharing,
-            createdBy: currentUser.id,
-            ...(bulkPromptSharing === 'team' && selectedTeamForBulkPrompts && { teamId: selectedTeamForBulkPrompts })
+            createdBy: currentUser.id
           };
           
           await createPrompt(prompt);
@@ -328,7 +337,6 @@ export default function SuperAdminPage() {
       
       // Reset form
       setBulkPromptText('');
-      setSelectedTeamForBulkPrompts('');
       setBulkPromptSharing('global');
       
       toast({
@@ -1106,35 +1114,20 @@ Problem to solve:
                     className="min-h-[120px]"
                   />
                 </div>
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <Label htmlFor="prompt-sharing">Sharing</Label>
-                    <Select value={promptSharing} onValueChange={(value: 'team' | 'global') => setPromptSharing(value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="global">Community (Global)</SelectItem>
-                        <SelectItem value="team">Team Specific</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {promptSharing === 'team' && (
+                  <div className="flex gap-4">
                     <div className="flex-1">
-                      <Label htmlFor="team-select">Target Team</Label>
-                      <Select value={selectedTeamForPrompt} onValueChange={setSelectedTeamForPrompt}>
+                      <Label htmlFor="prompt-sharing">Sharing</Label>
+                      <Select value={promptSharing} onValueChange={(value: 'private' | 'global') => setPromptSharing(value)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select team" />
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {teams.map((team) => (
-                            <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
-                          ))}
+                          <SelectItem value="private">Private (My Library)</SelectItem>
+                          <SelectItem value="global">Community (Global)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                  )}
-                </div>
+                  </div>
                 <div className="flex gap-3">
                   <Button type="submit" className="gap-2">
                     <Plus className="h-4 w-4" />
@@ -1175,39 +1168,24 @@ Problem to solve:
                     />
                   </div>
                   
-                  <div className="flex gap-4">
-                    <div className="flex-1">
-                      <Label htmlFor="bulk-sharing">Destination</Label>
-                      <Select value={bulkPromptSharing} onValueChange={(value: 'team' | 'global') => setBulkPromptSharing(value)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="global">Community (Global)</SelectItem>
-                          <SelectItem value="team">Team Specific</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {bulkPromptSharing === 'team' && (
+                    <div className="flex gap-4">
                       <div className="flex-1">
-                        <Label htmlFor="bulk-team-select">Target Team</Label>
-                        <Select value={selectedTeamForBulkPrompts} onValueChange={setSelectedTeamForBulkPrompts}>
+                        <Label htmlFor="bulk-sharing">Destination</Label>
+                        <Select value={bulkPromptSharing} onValueChange={(value: 'private' | 'global') => setBulkPromptSharing(value)}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select team" />
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {teams.map((team) => (
-                              <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
-                            ))}
+                            <SelectItem value="private">Private (My Library)</SelectItem>
+                            <SelectItem value="global">Community (Global)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                    )}
-                  </div>
+                    </div>
                   
-                  <Button 
-                    onClick={handleBulkCreatePrompts}
-                    disabled={isProcessingBulkPrompts || !bulkPromptText.trim() || (bulkPromptSharing === 'team' && !selectedTeamForBulkPrompts)}
+                    <Button 
+                      onClick={handleBulkCreatePrompts}
+                      disabled={isProcessingBulkPrompts || !bulkPromptText.trim()}
                     className="gap-2"
                   >
                     {isProcessingBulkPrompts ? (
@@ -1275,7 +1253,7 @@ Review the following code and provide feedback on best practices, potential bugs
                         <div>
                           <h4 className="font-semibold">{prompt.title}</h4>
                           <p className="text-sm text-muted-foreground">
-                            {prompt.tags.join(', ')} • Created by {prompt.createdBy}
+                            {prompt.tags.join(', ')} • Created by {getUserName(prompt.createdBy || '')}
                           </p>
                         </div>
                         <Badge variant="outline">Community</Badge>
