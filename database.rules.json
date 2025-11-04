@@ -2,30 +2,24 @@
   "rules": {
     ".read": false,
     ".write": false,
-    
-    "public": {
-      ".read": true,
-      ".write": false
-    },
-    
+
+    "public": { ".read": true, ".write": false },
+
     "email-verification": {
-      "$id": {
-        ".read": true,
-        ".write": false
-      }
+      "$id": { ".read": true, ".write": "auth != null" }
     },
-    
+
     "users": {
       ".indexOn": ["email"],
-      ".read": "auth != null && (query.orderByChild == 'email' && query.equalTo == auth.token.email || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
-      
+
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'super_user' || (auth.token.email != null && query.orderByChild == 'email' && query.equalTo == auth.token.email))",
+
       "$userId": {
         ".read": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
-        ".write": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
-        ".validate": "((!data.exists() && auth.uid == $userId && newData.child('role').val() != 'super_user') || (data.exists() && (root.child('users').child(auth.uid).child('role').val() == 'super_user' || (auth.uid == $userId && newData.child('role').val() == data.child('role').val() && newData.child('teamId').val() == data.child('teamId').val()))))"
+        ".write": "auth != null && (auth.uid == $userId || root.child('users').child(auth.uid).child('role').val() == 'super_user')"
       }
     },
-    
+
     "teams": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
       "$teamId": {
@@ -37,21 +31,19 @@
           "$memberId": {
             ".read": "auth != null && (root.child('teams').child($teamId).child('members').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
             ".write": "auth != null && (root.child('teams').child($teamId).child('members').child(auth.uid).child('role').val() == 'admin' || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
-            "role": {
-              ".validate": "newData.val().matches(/^(member|admin)$/)"
-            }
+            "role": { ".validate": "newData.val().matches(/^(member|admin)$/)" }
           }
         }
       }
     },
-    
+
     "prompts": {
       ".indexOn": ["createdBy", "sharing", "teamId"],
       ".read": "auth != null",
       "$promptId": {
-        ".read": "auth != null && (data.child('sharing').val() == 'global' || data.child('createdBy').val() == auth.uid || (data.child('sharing').val() == 'team' && data.child('teamId').exists() && root.child('users').child(auth.uid).child('teamId').val() == data.child('teamId').val()) || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
+        ".read": "auth != null && (data.child('sharing').val() == 'global' || data.child('createdBy').val() == auth.uid || (data.child('sharing').val() == 'team' && data.child('teamId').exists() && root.child('teams').child(data.child('teamId').val()).child('members').child(auth.uid).exists()) || root.child('users').child(auth.uid).child('role').val() == 'super_user')",
         ".write": "auth != null && ((!data.exists() && newData.child('createdBy').val() == auth.uid) || (data.exists() && (data.child('createdBy').val() == auth.uid || root.child('users').child(auth.uid).child('role').val() == 'super_user')))",
-        ".validate": "newData.hasChildren(['title','content','tags','sharing','createdBy']) && newData.child('sharing').val().matches(/^(private|team|global)$/) && (newData.child('sharing').val() != 'team' || (newData.hasChild('teamId') && root.child('users').child(newData.child('createdBy').val()).child('teamId').val() == newData.child('teamId').val())) && (newData.child('createdBy').val() == (data.exists() ? data.child('createdBy').val() : auth.uid))"
+        ".validate": "newData.hasChildren(['title','content','tags','sharing','createdBy']) && newData.child('sharing').val().matches(/^(private|team|global)$/) && (newData.child('sharing').val() != 'team' || (newData.hasChild('teamId') && root.child('teams').child(newData.child('teamId').val()).child('members').child(newData.child('createdBy').val()).exists())) && (newData.child('createdBy').val() == (data.exists() ? data.child('createdBy').val() : auth.uid))"
       }
     }
   }
