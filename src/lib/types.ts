@@ -4,9 +4,8 @@ export interface Prompt {
   content: string;
   tags: string[];
   software?: string;
-  sharing: 'private' | 'team' | 'global';
+  sharing: 'private' | 'global';
   createdBy?: string;
-  teamId?: string;
   createdAt?: string;
 }
 
