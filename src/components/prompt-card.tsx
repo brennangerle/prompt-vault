@@ -23,8 +23,6 @@ import { useToast } from '@/hooks/use-toast';
 import { OptimizePromptDialog } from './optimize-prompt-dialog';
 import { EditPromptDialog } from './edit-prompt-dialog';
 import { DeletePromptDialog } from './delete-prompt-dialog';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { canEditPrompt, canDeletePrompt } from '@/lib/permissions';
 import { useUser } from '@/lib/user-context';
 import clsx from 'clsx';
@@ -51,26 +49,6 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
 
   const handleUpdateContent = (newContent: string) => {
     onUpdatePrompt({ ...prompt, content: newContent });
-  };
-
-  const handleSharingChange = (isTeam: boolean) => {
-    if (prompt.sharing !== 'global' && canEdit) {
-      const updates: Partial<Prompt> = {
-        sharing: isTeam ? 'team' : 'private'
-      };
-
-      // When enabling team sharing, ensure teamId exists on the prompt by inheriting current user's teamId
-      if (isTeam && !prompt.teamId && currentUser?.teamId) {
-        updates.teamId = currentUser.teamId;
-      }
-      
-      onUpdatePrompt({ ...prompt, ...updates });
-      
-      toast({
-        title: isTeam ? 'Copied to Team' : 'Moved to Private',
-        description: isTeam ? 'Your prompt is now visible to your team.' : 'Your prompt is now private.',
-      });
-    }
   };
 
   const handleGlobalShare = () => {
@@ -119,48 +97,26 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
         </div>
         
         <div className="flex items-center gap-2 shrink-0">
-          {/* Sharing/Permissions Indicator */}
-          {canEdit && prompt.sharing !== 'global' && (
+            {/* Sharing indicator */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="flex items-center space-x-2 bg-background/50 backdrop-blur-sm rounded-full px-2.5 py-1.5 border border-border/30">
-                    <Switch
-                      id={`sharing-switch-${prompt.id}`}
-                      checked={prompt.sharing === 'team'}
-                      onCheckedChange={handleSharingChange}
-                      aria-label="Copy to team repository"
-                      className="scale-75"
-                    />
-                    <Label htmlFor={`sharing-switch-${prompt.id}`} className="text-xs text-muted-foreground whitespace-nowrap font-medium">
-                      {prompt.sharing === 'private' && 'Private'}
-                      {prompt.sharing === 'team' && 'Team'}
-                    </Label>
+                    {prompt.sharing === 'global' ? (
+                      <Globe className="h-3 w-3 text-emerald-500" />
+                    ) : (
+                      <Lock className="h-3 w-3 text-muted-foreground" />
+                    )}
+                    <span className={`text-xs font-medium ${prompt.sharing === 'global' ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                      {prompt.sharing === 'global' ? 'Community' : 'Private'}
+                    </span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Toggle to share with your team</p>
+                  <p>{prompt.sharing === 'global' ? 'Shared with the community' : 'Visible only to you'}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          )}
-
-          {/* Global sharing indicator */}
-          {prompt.sharing === 'global' && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center space-x-2 bg-background/50 backdrop-blur-sm rounded-full px-2.5 py-1.5 border border-border/30">
-                    <Globe className="h-3 w-3 text-emerald-500" />
-                    <Label className="text-xs text-muted-foreground whitespace-nowrap font-medium">Community</Label>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Shared with the community</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
 
           {/* Copy Button */}
           <TooltipProvider>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BookMarked, AlertCircle, RefreshCw, Copy, Eye, EyeOff } from 'lucide-react';
+import { BookMarked, AlertCircle, RefreshCw, Copy, Eye, EyeOff, CheckCircle2, Circle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { loginUser } from '@/lib/auth';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -35,17 +35,67 @@ export default function LoginPage() {
   
   const router = useRouter();
 
+  const PASSWORD_REQUIREMENTS = React.useMemo(() => ([
+    {
+      id: 'length',
+      label: 'At least 12 characters',
+      test: (value: string) => value.length >= 12,
+    },
+    {
+      id: 'uppercase',
+      label: 'Contains an uppercase letter',
+      test: (value: string) => /[A-Z]/.test(value),
+    },
+    {
+      id: 'lowercase',
+      label: 'Contains a lowercase letter',
+      test: (value: string) => /[a-z]/.test(value),
+    },
+    {
+      id: 'number',
+      label: 'Contains a number',
+      test: (value: string) => /\d/.test(value),
+    },
+    {
+      id: 'symbol',
+      label: 'Contains a symbol',
+      test: (value: string) => /[^A-Za-z0-9]/.test(value),
+    },
+  ]), []);
+
+  const passwordCheckResults = React.useMemo(() => PASSWORD_REQUIREMENTS.map((req) => ({
+    ...req,
+    passed: req.test(newPassword),
+  })), [PASSWORD_REQUIREMENTS, newPassword]);
+
+  const isPasswordValid = React.useMemo(
+    () => passwordCheckResults.every((req) => req.passed),
+    [passwordCheckResults]
+  );
+
   const generatePassword = () => {
-    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
-    let password = '';
-    for (let i = 0; i < 16; i++) {
-      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
+    const length = 16;
+    if (typeof window === 'undefined' || !window.crypto?.getRandomValues) {
+      return '';
     }
-    return password;
+
+    const randomValues = new Uint32Array(length);
+    window.crypto.getRandomValues(randomValues);
+
+    return Array.from(randomValues).reduce((acc, value) => {
+      const index = value % charset.length;
+      return acc + charset.charAt(index);
+    }, '');
   };
 
   const handleGeneratePassword = () => {
     const generatedPassword = generatePassword();
+    if (!generatedPassword) {
+      setCreateAccountError('Unable to generate a secure password. Please try again or enter one manually.');
+      return;
+    }
+    setCreateAccountError(null);
     setNewPassword(generatedPassword);
     setConfirmPassword(generatedPassword);
   };
@@ -71,10 +121,10 @@ export default function LoginPage() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setCreateAccountError('Password should be at least 6 characters long.');
-      return;
-    }
+      if (!isPasswordValid) {
+        setCreateAccountError('Please choose a stronger password that meets all requirements.');
+        return;
+      }
 
     setIsCreatingAccount(true);
     setCreateAccountError(null);
@@ -105,8 +155,8 @@ export default function LoginPage() {
         setCreateAccountError('An account with this email already exists. Please try logging in instead.');
       } else if (error.code === 'auth/invalid-email') {
         setCreateAccountError('Please enter a valid email address.');
-      } else if (error.code === 'auth/weak-password') {
-        setCreateAccountError('Password should be at least 6 characters long.');
+        } else if (error.code === 'auth/weak-password') {
+          setCreateAccountError('Password should meet the minimum security requirements.');
       } else {
         setCreateAccountError(error.message || 'Failed to create account. Please try again.');
       }
@@ -244,7 +294,7 @@ export default function LoginPage() {
                   />
                 </div>
                 
-                <div className="space-y-3">
+                  <div className="space-y-3">
                   <Label htmlFor="newPassword" className="text-base font-medium">Password</Label>
                   <div className="relative">
                     <Input
@@ -288,6 +338,23 @@ export default function LoginPage() {
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Generate Secure Password
                   </Button>
+                    <div className="space-y-2 rounded-lg border border-border/40 bg-background/40 p-3">
+                      <p className="text-xs font-medium text-muted-foreground">Password requirements</p>
+                      <ul className="space-y-1.5">
+                        {passwordCheckResults.map((req) => (
+                          <li key={req.id} className="flex items-center gap-2 text-xs">
+                            {req.passed ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                            ) : (
+                              <Circle className="h-3.5 w-3.5 text-muted-foreground/60" />
+                            )}
+                            <span className={req.passed ? 'text-emerald-600' : 'text-muted-foreground'}>
+                              {req.label}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                 </div>
 
                 <div className="space-y-3">
@@ -328,7 +395,7 @@ export default function LoginPage() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={isCreatingAccount || !newEmail || !newPassword || !confirmPassword}
+                      disabled={isCreatingAccount || !newEmail || !newPassword || !confirmPassword || !isPasswordValid}
                     className="flex-1 h-12 gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 font-semibold"
                   >
                     {isCreatingAccount ? 'Creating Account...' : 'Create Account'}

@@ -38,7 +38,7 @@ type PromptFormValues = z.infer<typeof promptFormSchema>;
 
 interface NewPromptDialogProps {
   children: React.ReactNode;
-  onAddPrompt: (prompt: Omit<Prompt, 'id' | 'sharing' | 'createdBy' | 'teamId'>) => void;
+  onAddPrompt: (prompt: Omit<Prompt, 'id' | 'sharing' | 'createdBy' | 'createdAt'>) => void;
 }
 
 export function NewPromptDialog({ children, onAddPrompt }: NewPromptDialogProps) {

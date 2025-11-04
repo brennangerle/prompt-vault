@@ -380,8 +380,7 @@ export async function getPromptsByUser(userId: string): Promise<Prompt[]> {
 }
 
 export async function getPromptsBySharing(
-  sharing: 'private' | 'team' | 'global',
-  teamId?: string
+  sharing: 'private' | 'global'
 ): Promise<Prompt[]> {
   const promptsRef = ref(database, 'prompts');
   let snapshot;
@@ -390,9 +389,6 @@ export async function getPromptsBySharing(
     // Private: only prompts with 'private' sharing
     const sharingQuery = query(promptsRef, orderByChild('sharing'), equalTo('private'));
     snapshot = await get(sharingQuery);
-  } else if (sharing === 'team') {
-    // Team: prompts with 'team' OR 'global' sharing (cascading access)
-    snapshot = await get(promptsRef);
   } else if (sharing === 'global') {
     // Community: only prompts with 'global' sharing
     const sharingQuery = query(promptsRef, orderByChild('sharing'), equalTo('global'));
@@ -405,15 +401,6 @@ export async function getPromptsBySharing(
       id: promptId,
       ...promptsData[promptId]
     }));
-    
-    // Filter for team view to include team prompts from same team and global prompts
-    if (sharing === 'team' && teamId) {
-      prompts = prompts.filter(p => 
-        p.sharing === 'global' || 
-        (p.sharing === 'team' && p.teamId === teamId)
-      );
-    }
-    
     return prompts;
   }
   return [];
@@ -423,8 +410,7 @@ export async function getPromptsBySharing(
 export function subscribeToPrompts(
   callback: (prompts: Prompt[]) => void,
   userId?: string,
-  sharing?: 'private' | 'team' | 'global',
-  userTeamId?: string
+  sharing?: 'private' | 'global'
 ): () => void {
   let promptsRef: Query | DatabaseReference;
 
@@ -444,51 +430,6 @@ export function subscribeToPrompts(
       }
     });
     return unsubscribe;
-  }
-
-  if (sharing === 'team' && userTeamId) {
-    const teamPromptsRef = query(ref(database, 'prompts'), orderByChild('teamId'), equalTo(userTeamId));
-    const globalPromptsRef = query(ref(database, 'prompts'), orderByChild('sharing'), equalTo('global'));
-
-    let teamPrompts: Prompt[] = [];
-    let globalPrompts: Prompt[] = [];
-
-    const handleUpdate = () => {
-      const allPrompts = [...teamPrompts, ...globalPrompts];
-      const uniquePrompts = Array.from(new Map(allPrompts.map(p => [p.id, p])).values());
-      callback(uniquePrompts);
-    };
-
-    const teamUnsubscribe = onValue(teamPromptsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const promptsData = snapshot.val();
-        teamPrompts = Object.keys(promptsData).map(promptId => ({
-          id: promptId,
-          ...promptsData[promptId]
-        })).filter(p => p.sharing === 'team');
-      } else {
-        teamPrompts = [];
-      }
-      handleUpdate();
-    });
-
-    const globalUnsubscribe = onValue(globalPromptsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const promptsData = snapshot.val();
-        globalPrompts = Object.keys(promptsData).map(promptId => ({
-          id: promptId,
-          ...promptsData[promptId]
-        }));
-      } else {
-        globalPrompts = [];
-      }
-      handleUpdate();
-    });
-
-    return () => {
-      teamUnsubscribe();
-      globalUnsubscribe();
-    };
   }
 
   if (sharing === 'global') {
