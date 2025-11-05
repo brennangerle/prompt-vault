@@ -9,7 +9,7 @@ import {
   sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { createUser, createUserWithUid, getUserByEmail, addTeamMember, verifyEmailExists, createEmailVerificationEntry, updateUser, getUser } from './db';
+import { createUserWithUid, getUserByEmail, addTeamMember, updateUser, getUser, deleteUserRecord } from './db';
 import type { User, TeamMember } from './types';
 
 // Predefined tester accounts
@@ -146,31 +146,56 @@ async function createTesterAccount(email: string): Promise<User> {
 async function createOrGetSuperUser(): Promise<User> {
   try {
     console.log('Attempting to get super user from database...');
-    let user = await getUserByEmail(superUserAccount.email);
-    
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) {
+      throw new Error('Super user not authenticated after creation/sign-in');
+    }
+
+    // Prefer fetching by UID to ensure we operate on the auth-backed record
+    let user = await getUser(firebaseUser.uid);
+
+    if (!user) {
+      user = await getUserByEmail(superUserAccount.email);
+    }
+
     if (!user) {
       console.log('Creating super user in database...');
       const userData: Omit<User, 'id'> = {
         email: superUserAccount.email,
         role: 'super_user'
       };
-      
-      const firebaseUser = auth.currentUser;
-      if (!firebaseUser) {
-        throw new Error('Super user not authenticated after creation/sign-in');
-      }
       await createUserWithUid(firebaseUser.uid, userData);
-      user = { id: firebaseUser.uid, ...userData };
       console.log('Super user created with ID:', firebaseUser.uid);
-    } else {
-      console.log('Super user found:', user);
-      if (user.role !== 'super_user') {
-        console.log('Correcting super user role in database...');
-        await updateUser(user.id, { role: 'super_user' });
-        user.role = 'super_user';
-      }
+      return { id: firebaseUser.uid, ...userData };
     }
-    
+
+    if (user.id !== firebaseUser.uid) {
+      console.log('Migrating super user record to auth UID...');
+      const { id: _legacyId, ...legacyData } = user;
+      const normalizedData: Omit<User, 'id'> = {
+        ...legacyData,
+        email: superUserAccount.email,
+        role: 'super_user'
+      };
+      await createUserWithUid(firebaseUser.uid, normalizedData);
+      console.log('Super user data migrated to UID:', firebaseUser.uid);
+
+      try {
+        await deleteUserRecord(user.id);
+        console.log('Removed legacy super user record:', user.id);
+      } catch (migrationError) {
+        console.warn('Failed to remove legacy super user entry:', migrationError);
+      }
+
+      return { id: firebaseUser.uid, ...normalizedData };
+    }
+
+    if (user.role !== 'super_user') {
+      console.log('Correcting super user role in database...');
+      await updateUser(user.id, { role: 'super_user' });
+      user.role = 'super_user';
+    }
+
     return user;
   } catch (error) {
     console.error('Error in createOrGetSuperUser:', error);
