@@ -129,6 +129,11 @@ export async function updateUser(userId: string, updates: Partial<User>): Promis
   await update(userRef, filteredUpdates as any);
 }
 
+export async function deleteUserRecord(userId: string): Promise<void> {
+  const userRef = ref(database, `users/${userId}`);
+  await remove(userRef);
+}
+
 // Team operations
 export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
   const teamRef = ref(database, `teams/${teamId}/members`);
