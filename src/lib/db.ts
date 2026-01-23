@@ -402,21 +402,12 @@ export async function getPromptsByUser(userId: string): Promise<Prompt[]> {
 }
 
 export async function getPromptsBySharing(
-  sharing: 'private' | 'global'
+  sharing: 'private' | 'team' | 'global'
 ): Promise<Prompt[]> {
   const promptsRef = ref(database, 'prompts');
-  let snapshot;
-  
-  if (sharing === 'private') {
-    // Private: only prompts with 'private' sharing
-    const sharingQuery = query(promptsRef, orderByChild('sharing'), equalTo('private'));
-    snapshot = await get(sharingQuery);
-  } else if (sharing === 'global') {
-    // Community: only prompts with 'global' sharing
-    const sharingQuery = query(promptsRef, orderByChild('sharing'), equalTo('global'));
-    snapshot = await get(sharingQuery);
-  }
-  
+  const sharingQuery = query(promptsRef, orderByChild('sharing'), equalTo(sharing));
+  const snapshot = await get(sharingQuery);
+
   if (snapshot && snapshot.exists()) {
     const promptsData = snapshot.val();
     let prompts = Object.keys(promptsData).map(promptId => ({
@@ -432,7 +423,7 @@ export async function getPromptsBySharing(
 export function subscribeToPrompts(
   callback: (prompts: Prompt[]) => void,
   userId?: string,
-  sharing?: 'private' | 'global'
+  sharing?: 'private' | 'team' | 'global'
 ): () => void {
   let promptsRef: Query | DatabaseReference;
 
@@ -456,6 +447,24 @@ export function subscribeToPrompts(
 
   if (sharing === 'global') {
     promptsRef = query(ref(database, 'prompts'), orderByChild('sharing'), equalTo('global'));
+    const unsubscribe = onValue(promptsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const promptsData = snapshot.val();
+        const prompts = Object.keys(promptsData).map(promptId => ({
+          id: promptId,
+          ...promptsData[promptId]
+        }));
+        callback(prompts);
+      } else {
+        callback([]);
+      }
+    });
+    return unsubscribe;
+  }
+
+  if (sharing === 'team') {
+    // For team view: prompts with team sharing
+    promptsRef = query(ref(database, 'prompts'), orderByChild('sharing'), equalTo('team'));
     const unsubscribe = onValue(promptsRef, (snapshot) => {
       if (snapshot.exists()) {
         const promptsData = snapshot.val();

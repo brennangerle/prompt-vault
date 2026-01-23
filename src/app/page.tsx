@@ -7,6 +7,7 @@ import {
   Folder,
   Globe,
   User as UserIcon,
+  Users,
   Settings,
   Crown,
 } from 'lucide-react';
@@ -41,10 +42,11 @@ import { useUser } from '@/lib/user-context';
 import { isSuperUser, canEditPrompt, canDeletePrompt } from '@/lib/permissions';
 import type { User } from '@/lib/types';
 
-type SharingScope = 'private' | 'community';
+type SharingScope = 'private' | 'team' | 'community';
 
-const scopeData: { id: SharingScope; label: string; icon: React.ElementType; description: string; disabled?: boolean; }[] = [
+const scopeData: { id: SharingScope; label: string; icon: React.ElementType; description: string; disabled?: boolean; requiresTeam?: boolean; }[] = [
   { id: 'private', label: 'My Prompt Library', icon: UserIcon, description: 'Your personal collection of prompts you created.' },
+  { id: 'team', label: 'Team Library', icon: Users, description: 'Prompts shared with your team members.', requiresTeam: true },
   { id: 'community', label: 'Community Library', icon: Globe, description: 'Discover prompts shared with the entire community.' },
 ];
 
@@ -66,6 +68,19 @@ export default function PromptKeeperPage() {
       unsubscribe = subscribeToPrompts((userPrompts) => {
         setPrompts(userPrompts);
       }, currentUser.id);
+    } else if (selectedScope === 'team') {
+      // Subscribe to team prompts (requires user to have a teamId)
+      if (currentUser.teamId) {
+        unsubscribe = subscribeToPrompts((teamPrompts) => {
+          // Filter to only show team prompts for the user's team
+          const filtered = teamPrompts.filter(p =>
+            p.sharing === 'team' && p.teamId === currentUser.teamId
+          );
+          setPrompts(filtered);
+        }, undefined, 'team');
+      } else {
+        setPrompts([]);
+      }
     } else if (selectedScope === 'community') {
       // Subscribe to community prompts (global only)
       unsubscribe = subscribeToPrompts((globalPrompts) => {
@@ -195,27 +210,33 @@ export default function PromptKeeperPage() {
           </SidebarHeader>
           <SidebarContent className="px-3">
             <SidebarMenu className="space-y-2">
-              {scopeData.map((scope) => (
-                <SidebarMenuItem key={scope.id}>
-                  <SidebarMenuButton
-                    onClick={scope.disabled ? undefined : () => handleScopeChange(scope.id)}
-                    isActive={selectedScope === scope.id && !scope.disabled}
-                    disabled={scope.disabled}
-                    className={`gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${
-                      scope.disabled 
-                        ? 'opacity-50 cursor-not-allowed text-muted-foreground' 
-                        : 'hover:bg-sidebar-accent/20 data-[active=true]:bg-primary/20 data-[active=true]:text-primary data-[active=true]:shadow-lg'
-                    }`}
-                  >
-                    <scope.icon className={`size-5 transition-colors duration-300 ${
-                      scope.disabled 
-                        ? 'text-muted-foreground' 
-                        : 'text-sidebar-foreground/70 group-hover:text-primary group-data-[active=true]:text-primary'
-                    }`} />
-                    <span className="font-medium">{scope.label}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {scopeData.map((scope) => {
+                const isDisabled = scope.disabled || (scope.requiresTeam && !currentUser?.teamId);
+                return (
+                  <SidebarMenuItem key={scope.id}>
+                    <SidebarMenuButton
+                      onClick={isDisabled ? undefined : () => handleScopeChange(scope.id)}
+                      isActive={selectedScope === scope.id && !isDisabled}
+                      disabled={isDisabled}
+                      className={`gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${
+                        isDisabled
+                          ? 'opacity-50 cursor-not-allowed text-muted-foreground'
+                          : 'hover:bg-sidebar-accent/20 data-[active=true]:bg-primary/20 data-[active=true]:text-primary data-[active=true]:shadow-lg'
+                      }`}
+                    >
+                      <scope.icon className={`size-5 transition-colors duration-300 ${
+                        isDisabled
+                          ? 'text-muted-foreground'
+                          : 'text-sidebar-foreground/70 group-hover:text-primary group-data-[active=true]:text-primary'
+                      }`} />
+                      <span className="font-medium">{scope.label}</span>
+                      {scope.requiresTeam && !currentUser?.teamId && (
+                        <span className="text-xs text-muted-foreground ml-auto">(No team)</span>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
             <SidebarSeparator className="my-6 bg-sidebar-border/30" />
             <SidebarGroup>

@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Check, Wand2, MoreVertical, Trash2, Pencil, BrainCircuit, Globe, Lock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Copy, Check, Wand2, MoreVertical, Trash2, Pencil, BrainCircuit, Globe, Lock, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Prompt } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { OptimizePromptDialog } from './optimize-prompt-dialog';
@@ -51,22 +51,25 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
     onUpdatePrompt({ ...prompt, content: newContent });
   };
 
-  const handleGlobalShare = () => {
-    if (prompt.sharing === 'global') {
-      // Unshare from community - return to private
-      onUpdatePrompt({ ...prompt, sharing: 'private' });
-      toast({
-        title: 'Removed from Community',
-        description: 'Your prompt is now private.',
-      });
-    } else {
-      // Share to community
-      onUpdatePrompt({ ...prompt, sharing: 'global' });
-      toast({
-        title: 'Shared to Community',
-        description: 'Your prompt is now visible to everyone.',
-      });
+  const handleSharingChange = (newSharing: 'private' | 'team' | 'global') => {
+    if (prompt.sharing === newSharing) return;
+
+    const updatedPrompt = { ...prompt, sharing: newSharing };
+    // Add teamId if sharing to team and user has a team
+    if (newSharing === 'team' && currentUser?.teamId) {
+      updatedPrompt.teamId = currentUser.teamId;
+    } else if (newSharing !== 'team') {
+      delete updatedPrompt.teamId;
     }
+
+    onUpdatePrompt(updatedPrompt);
+
+    const messages: Record<string, { title: string; description: string }> = {
+      private: { title: 'Made Private', description: 'Your prompt is now private.' },
+      team: { title: 'Shared with Team', description: 'Your prompt is now visible to team members.' },
+      global: { title: 'Shared to Community', description: 'Your prompt is now visible to everyone.' },
+    };
+    toast(messages[newSharing]);
   };
 
   // Check if current user can edit/delete prompts
@@ -104,16 +107,23 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
                   <div className="flex items-center space-x-2 bg-background/50 backdrop-blur-sm rounded-full px-2.5 py-1.5 border border-border/30">
                     {prompt.sharing === 'global' ? (
                       <Globe className="h-3 w-3 text-emerald-500" />
+                    ) : prompt.sharing === 'team' ? (
+                      <Users className="h-3 w-3 text-blue-500" />
                     ) : (
                       <Lock className="h-3 w-3 text-muted-foreground" />
                     )}
-                    <span className={`text-xs font-medium ${prompt.sharing === 'global' ? 'text-emerald-600' : 'text-muted-foreground'}`}>
-                      {prompt.sharing === 'global' ? 'Community' : 'Private'}
+                    <span className={`text-xs font-medium ${
+                      prompt.sharing === 'global' ? 'text-emerald-600' :
+                      prompt.sharing === 'team' ? 'text-blue-600' : 'text-muted-foreground'
+                    }`}>
+                      {prompt.sharing === 'global' ? 'Community' :
+                       prompt.sharing === 'team' ? 'Team' : 'Private'}
                     </span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{prompt.sharing === 'global' ? 'Shared with the community' : 'Visible only to you'}</p>
+                  <p>{prompt.sharing === 'global' ? 'Shared with the community' :
+                      prompt.sharing === 'team' ? 'Shared with your team' : 'Visible only to you'}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -190,16 +200,24 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
                 </OptimizePromptDialog>
                 {canEdit && (
                   <>
-                    <DropdownMenuItem onClick={handleGlobalShare}>
-                      {prompt.sharing === 'global' ? (
+                    {prompt.sharing !== 'private' && (
+                      <DropdownMenuItem onClick={() => handleSharingChange('private')}>
                         <Lock className="mr-2 h-4 w-4" />
-                      ) : (
+                        <span>Make Private</span>
+                      </DropdownMenuItem>
+                    )}
+                    {prompt.sharing !== 'team' && currentUser?.teamId && (
+                      <DropdownMenuItem onClick={() => handleSharingChange('team')}>
+                        <Users className="mr-2 h-4 w-4" />
+                        <span>Share with Team</span>
+                      </DropdownMenuItem>
+                    )}
+                    {prompt.sharing !== 'global' && (
+                      <DropdownMenuItem onClick={() => handleSharingChange('global')}>
                         <Globe className="mr-2 h-4 w-4" />
-                      )}
-                      <span>
-                        {prompt.sharing === 'global' ? 'Remove from Community' : 'Share to Community'}
-                      </span>
-                    </DropdownMenuItem>
+                        <span>Share to Community</span>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                   </>
                 )}

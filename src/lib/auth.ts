@@ -12,20 +12,29 @@ import { auth } from './firebase';
 import { createUserWithUid, getUserByEmail, addTeamMember, updateUser, getUser, deleteUserRecord } from './db';
 import type { User, TeamMember } from './types';
 
-// Predefined tester accounts
-const testerAccounts = {
+// SECURITY WARNING: Tester accounts should be disabled in production
+// These accounts auto-create with weak passwords for development/testing only
+const ENABLE_TESTER_ACCOUNTS = process.env.NEXT_PUBLIC_ENABLE_TESTER_ACCOUNTS === 'true';
+
+const testerAccounts = ENABLE_TESTER_ACCOUNTS ? {
   'tester1@t1.com': { userId: 'tester1', teamId: 't1', role: 'admin' as const },
   'tester2@t1.com': { userId: 'tester2', teamId: 't1', role: 'member' as const },
   'tester3@t2.com': { userId: 'tester3', teamId: 't2', role: 'admin' as const },
   'tester4@t2.com': { userId: 'tester4', teamId: 't2', role: 'member' as const },
-};
+} : {};
 
-// Super user account
+// SECURITY WARNING: Super user credentials MUST be set via environment variables in production
+// Never use default/hardcoded credentials in a production environment
 const superUserAccount = {
-  email: 'masterkeeper@admin.com',
-  password: 'password',
+  email: process.env.NEXT_PUBLIC_SUPER_USER_EMAIL || 'masterkeeper@admin.com',
+  password: process.env.SUPER_USER_PASSWORD || 'password',
   userRole: 'super_user' as const
 };
+
+// Log warning if using default credentials (development only)
+if (typeof window !== 'undefined' && superUserAccount.password === 'password') {
+  console.warn('[SECURITY] Using default super user credentials. Set SUPER_USER_PASSWORD env var for production.');
+}
 
 export async function loginUser(email: string, password: string = 'password123'): Promise<User> {
   console.log('Login attempt for:', email);
