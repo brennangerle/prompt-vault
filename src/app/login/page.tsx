@@ -185,7 +185,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-6">
-      <Card className="w-full max-w-lg border-0 glass-light hover:shadow-2xl hover:shadow-primary/20 transition-all-smooth group">
+      <Card className="w-full max-w-lg border border-border/50 bg-card/50 backdrop-blur-sm shadow-xl hover:shadow-2xl hover:shadow-primary/15 transition-all duration-300 group">
         <CardHeader className="text-center pb-8">
           <div className="flex items-center justify-center gap-4 mb-6">
             <div className="p-3 rounded-2xl bg-primary/20 backdrop-blur-sm group-hover:bg-primary/30 transition-colors duration-300">

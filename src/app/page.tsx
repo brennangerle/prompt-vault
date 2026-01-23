@@ -17,6 +17,7 @@ import {
   SidebarProvider,
   SidebarHeader,
   SidebarContent,
+  SidebarFooter,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
@@ -26,6 +27,9 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
+import { Badge } from '@/components/ui/badge';
+import { LogOut } from 'lucide-react';
+import { logoutUser } from '@/lib/auth';
 import { PromptCard } from '@/components/prompt-card';
 import { QuickPromptForm } from '@/components/quick-prompt-form';
 import { Card, CardContent } from '@/components/ui/card';
@@ -165,8 +169,11 @@ export default function PromptKeeperPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground">Loading your prompts...</p>
+        </div>
       </div>
     );
   }
@@ -257,16 +264,45 @@ export default function PromptKeeperPage() {
               </SidebarMenu>
             </SidebarGroup>
           </SidebarContent>
+          <SidebarFooter className="border-t border-sidebar-border/30 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                  <UserIcon className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-sidebar-foreground truncate">{currentUser?.email}</p>
+                  <p className="text-xs text-sidebar-foreground/60 capitalize">{currentUser?.role || 'User'}</p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={async () => {
+                  await logoutUser();
+                  router.push('/login');
+                }}
+                className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive shrink-0"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          </SidebarFooter>
         </Sidebar>
         <div className="flex-1 bg-gradient-to-br from-background via-background to-primary/5">
-          <header className="flex items-center justify-between border-b border-border/50 backdrop-blur-sm bg-background/80 p-6 sm:p-8">
+          <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border/50 backdrop-blur-md bg-background/80 p-6 sm:p-8">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="md:hidden h-10 w-10 rounded-xl hover:bg-primary/10 transition-all duration-300"/>
               <div>
-                <h1 className="text-3xl font-bold text-foreground bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-                    {scopeData.find(s => s.id === selectedScope)?.label}
-                </h1>
-                <p className="text-muted-foreground mt-1 font-medium">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
+                      {scopeData.find(s => s.id === selectedScope)?.label}
+                  </h1>
+                  <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                    {filteredPrompts.length} {filteredPrompts.length === 1 ? 'prompt' : 'prompts'}
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground mt-1 font-medium text-sm sm:text-base">
                     {selectedTag === 'All'
                       ? scopeData.find(s => s.id === selectedScope)?.description
                       : `Prompts tagged with "${selectedTag}"`}
@@ -291,12 +327,37 @@ export default function PromptKeeperPage() {
               <Card className="w-full border-0 glass-light">
                 <CardContent className="flex min-h-[280px] flex-col items-center justify-center p-12 text-center">
                   <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
-                    <BookMarked className="w-8 h-8 text-primary" />
+                    {selectedScope === 'private' ? (
+                      <UserIcon className="w-8 h-8 text-primary" />
+                    ) : selectedScope === 'team' ? (
+                      <Users className="w-8 h-8 text-primary" />
+                    ) : (
+                      <Globe className="w-8 h-8 text-primary" />
+                    )}
                   </div>
-                  <h2 className="text-2xl font-bold text-foreground mb-3">No Prompts Found</h2>
-                  <p className="mt-2 max-w-md text-muted-foreground leading-relaxed">
-                    There are no prompts in this view. Try a different scope or add a new prompt to your private repository.
+                  <h2 className="text-2xl font-bold text-foreground mb-3">
+                    {selectedScope === 'private'
+                      ? 'Start Your Collection'
+                      : selectedScope === 'team'
+                      ? 'No Team Prompts Yet'
+                      : 'Explore the Community'}
+                  </h2>
+                  <p className="mt-2 max-w-md text-muted-foreground leading-relaxed mb-6">
+                    {selectedScope === 'private'
+                      ? 'Add your first prompt above to start building your personal library. Your prompts are private by default.'
+                      : selectedScope === 'team'
+                      ? 'Your team hasn\'t shared any prompts yet. Create a prompt and share it with your team.'
+                      : 'No community prompts available. Be the first to share a prompt with the community!'}
                   </p>
+                  {selectedScope !== 'private' && (
+                    <Button
+                      onClick={() => handleScopeChange('private')}
+                      className="gap-2"
+                    >
+                      <UserIcon className="h-4 w-4" />
+                      Go to My Library
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             )}

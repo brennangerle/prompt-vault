@@ -77,15 +77,15 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
   const canDelete = canDeletePrompt(currentUser, prompt);
 
   return (
-    <Card className="w-full group transition-all-smooth hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 border-0 glass-light">
+    <Card className="w-full group transition-all duration-300 ease-out hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-0.5 border border-border/50 bg-card/50 backdrop-blur-sm">
       {/* Collapsed View - Always visible */}
       <div className="flex items-center justify-between p-4 gap-4">
         <div className="flex-1 min-w-0">
-          <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors duration-300 truncate pr-2">{prompt.title}</CardTitle>
+          <CardTitle className="text-base sm:text-lg font-semibold text-foreground group-hover:text-primary transition-colors duration-300 truncate pr-2">{prompt.title}</CardTitle>
           {isExpanded && (
-            <div className="flex flex-wrap items-center gap-2 mt-2">
+            <div className="flex flex-wrap items-center gap-2 mt-3">
               {prompt.tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="bg-secondary/80 hover:bg-secondary transition-colors duration-200 font-medium text-xs">
+                <Badge key={tag} variant="secondary" className="bg-primary/5 hover:bg-primary/10 text-foreground/80 transition-colors duration-200 font-medium text-xs">
                   {tag}
                 </Badge>
               ))}
@@ -240,13 +240,21 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
 
       {/* Expanded View - Only visible when expanded */}
       {isExpanded && (
-        <div className="px-4 pb-4 space-y-4 border-t border-border/20 pt-4">
+        <div className="px-4 pb-4 space-y-4 border-t border-border/30 pt-4 animate-in slide-in-from-top-2 duration-200">
           <div className="relative">
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap font-mono bg-muted/60 backdrop-blur-sm p-4 rounded-lg border border-border/50 leading-relaxed">
+            <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-mono bg-muted/40 p-4 rounded-lg border border-border/30 leading-relaxed overflow-x-auto max-h-[400px] overflow-y-auto">
               {prompt.content}
-            </p>
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+            </pre>
           </div>
+          {prompt.createdAt && (
+            <p className="text-xs text-muted-foreground">
+              Created {new Date(prompt.createdAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+              })}
+            </p>
+          )}
         </div>
       )}
     </Card>
