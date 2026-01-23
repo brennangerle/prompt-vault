@@ -1,11 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,57 +23,38 @@ import {
   Users,
   UserPlus,
   Trash2,
-  Settings,
   LogOut,
   ArrowLeft,
   KeyRound,
   Crown,
-  Building,
-  Plus,
+  Building2,
+  Mail,
   Shield,
+  Calendar,
   User as UserIcon,
-  ChevronDown,
-  ChevronRight,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { AuthGuard } from '@/components/auth-guard';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  getTeamMembers as getTeamMembersFromDB, 
-  addTeamMember, 
+import {
+  addTeamMember,
   removeTeamMember,
   isUserAdmin as isUserAdminFromDB,
   subscribeToTeamMembers,
-  getAllTeams,
-  createTeam,
-  deleteTeam,
-  getAllUsers,
-  createUser,
-  updateUser,
   getTeam
 } from '@/lib/db';
 import { logoutUser, sendPasswordReset } from '@/lib/auth';
 import { useUser } from '@/lib/user-context';
 import { isSuperUser } from '@/lib/permissions';
-import type { TeamMember, User, Team } from '@/lib/types';
+import type { TeamMember, Team } from '@/lib/types';
 
 export default function SettingsPage() {
   const { currentUser, isLoading } = useUser();
   const [newMemberEmail, setNewMemberEmail] = React.useState('');
   const [teamMembers, setTeamMembers] = React.useState<TeamMember[]>([]);
   const [isUserAdminState, setIsUserAdminState] = React.useState(false);
-  
-  // Super user states
-  const [teams, setTeams] = React.useState<Team[]>([]);
-  const [allUsers, setAllUsers] = React.useState<User[]>([]);
-  const [newTeamName, setNewTeamName] = React.useState('');
-  const [selectedTeamId, setSelectedTeamId] = React.useState<string>('');
-  const [teamInputValues, setTeamInputValues] = React.useState<Record<string, string>>({});
-  const [expandedTeams, setExpandedTeams] = React.useState<Record<string, boolean>>({});
-  const [expandedUsersList, setExpandedUsersList] = React.useState(true);
-  
-  const [currentTeamName, setCurrentTeamName] = React.useState<string | null>(null);
-  
+  const [currentTeam, setCurrentTeam] = React.useState<Team | null>(null);
+
   const router = useRouter();
   const { toast } = useToast();
 
@@ -80,53 +62,33 @@ export default function SettingsPage() {
     const initUser = async () => {
       try {
         if (!currentUser || isLoading) return;
-        
-        // Check if user is admin
+
+        // Check if user is admin of their team
         if (currentUser.teamId) {
           const isAdmin = await isUserAdminFromDB(currentUser.id, currentUser.teamId);
           setIsUserAdminState(isAdmin);
+
+          // Load team info
+          const team = await getTeam(currentUser.teamId);
+          setCurrentTeam(team);
         }
-        
-        // Load super user data if applicable
-        if (isSuperUser(currentUser)) {
-          const [teamsData, usersData] = await Promise.all([
-            getAllTeams(),
-            getAllUsers()
-          ]);
-          setTeams(teamsData);
-          setAllUsers(usersData);
-        }
-              } catch (error) {
-          console.error('Failed to load user data:', error);
-        }
-      };
-      
-      initUser();
-    }, [currentUser, isLoading]);
+      } catch (error) {
+        console.error('Failed to load user data:', error);
+      }
+    };
+
+    initUser();
+  }, [currentUser, isLoading]);
 
   // Subscribe to team members
   React.useEffect(() => {
     if (!currentUser?.teamId) return;
-    
+
     const unsubscribe = subscribeToTeamMembers(currentUser.teamId, (members) => {
       setTeamMembers(members);
     });
-    
-    return unsubscribe;
-  }, [currentUser?.teamId]);
 
-  // Load current team name for non-super users
-  React.useEffect(() => {
-    const loadTeamName = async () => {
-      if (!currentUser?.teamId) return;
-      try {
-        const team = await getTeam(currentUser.teamId);
-        setCurrentTeamName(team?.name ?? null);
-      } catch (err) {
-        console.error('Failed to load team name:', err);
-      }
-    };
-    loadTeamName();
+    return unsubscribe;
   }, [currentUser?.teamId]);
 
   const handleAddMember = async (e: React.FormEvent) => {
@@ -136,7 +98,7 @@ export default function SettingsPage() {
     try {
       const newMember: TeamMember = {
         id: Date.now().toString(),
-        email: newMemberEmail,
+        email: newMemberEmail.toLowerCase(),
         role: 'member',
         joinedAt: new Date().toISOString(),
       };
@@ -159,7 +121,7 @@ export default function SettingsPage() {
 
   const handleRemoveMember = async (memberId: string) => {
     if (!isUserAdminState || !currentUser?.teamId) return;
-    
+
     try {
       await removeTeamMember(currentUser.teamId, memberId);
       toast({
@@ -183,11 +145,12 @@ export default function SettingsPage() {
         title: 'Password reset email sent',
         description: `A password reset email has been sent to ${email}.`,
       });
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error as { message?: string };
       console.error('Failed to send password reset email:', error);
       toast({
         title: 'Error',
-        description: 'Failed to send password reset email. Please try again.',
+        description: err.message || 'Failed to send password reset email. Please try again.',
         variant: 'destructive'
       });
     }
@@ -202,221 +165,13 @@ export default function SettingsPage() {
     }
   };
 
-  // Super User Functions
-  const handleCreateTeam = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTeamName.trim() || !currentUser) return;
-
-    try {
-      const teamId = await createTeam({
-        name: newTeamName.trim(),
-        createdBy: currentUser.id
-      });
-      
-      const newTeam: Team = {
-        id: teamId,
-        name: newTeamName.trim(),
-        members: [],
-        createdBy: currentUser.id,
-        createdAt: new Date().toISOString()
-      };
-      
-      setTeams([...teams, newTeam]);
-      setNewTeamName('');
-      toast({
-        title: 'Team created',
-        description: `Team "${newTeamName}" has been created successfully.`,
-      });
-    } catch (error) {
-      console.error('Failed to create team:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create team. Please try again.',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const handleDeleteTeam = async (teamId: string, teamName: string) => {
-    try {
-      await deleteTeam(teamId);
-      setTeams(teams.filter(team => team.id !== teamId));
-      toast({
-        title: 'Team deleted',
-        description: `Team "${teamName}" has been deleted successfully.`,
-      });
-    } catch (error) {
-      console.error('Failed to delete team:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete team. Please try again.',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const handleAddUserToTeam = async (userEmail: string, teamId: string) => {
-    try {
-      // Basic email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(userEmail)) {
-        toast({
-          title: 'Invalid Email',
-          description: 'Please enter a valid email address.',
-          variant: 'destructive'
-        });
-        return;
-      }
-
-      // Check if user exists
-      let user = allUsers.find(u => u.email === userEmail);
-      let isNewUser = false;
-      
-      // Check if user is already in this team
-      const team = teams.find(t => t.id === teamId);
-      if (team?.members.some(m => m.email === userEmail)) {
-        toast({
-          title: 'User already in team',
-          description: `${userEmail} is already a member of this team.`,
-          variant: 'destructive'
-        });
-        return;
-      }
-      
-      if (!user) {
-        // Create new user if doesn't exist
-        const userData: Omit<User, 'id'> = {
-          email: userEmail,
-          teamId: teamId,
-          role: 'user'
-        };
-        
-        const userId = await createUser(userData);
-        user = { id: userId, ...userData };
-        isNewUser = true;
-      } else {
-        // Update existing user's teamId
-        await updateUser(user.id, { ...user, teamId });
-      }
-
-      const teamMember: TeamMember = {
-        id: user.id,
-        email: user.email,
-        role: 'member',
-        joinedAt: new Date().toISOString()
-      };
-
-      await addTeamMember(teamId, teamMember);
-      
-      // Clear the specific team's input
-      setTeamInputValues(prev => ({ ...prev, [teamId]: '' }));
-      
-      // Refresh data
-      const [updatedTeams, updatedUsers] = await Promise.all([
-        getAllTeams(),
-        getAllUsers()
-      ]);
-      setTeams(updatedTeams);
-      setAllUsers(updatedUsers);
-      
-      toast({
-        title: 'User added to team',
-        description: `${userEmail} has been ${isNewUser ? 'created and ' : ''}added to the team.`,
-      });
-    } catch (error) {
-      console.error('Failed to add user to team:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to add user to team. Please try again.',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const toggleTeamExpansion = (teamId: string) => {
-    setExpandedTeams(prev => ({
-      ...prev,
-      [teamId]: !prev[teamId]
-    }));
-  };
-
-  const updateTeamInputValue = (teamId: string, value: string) => {
-    setTeamInputValues(prev => ({
-      ...prev,
-      [teamId]: value
-    }));
-  };
-
-  const handleToggleUserRole = async (userId: string, teamId: string, currentRole: 'admin' | 'member') => {
-    try {
-      const newRole = currentRole === 'admin' ? 'member' : 'admin';
-      
-      // Update in team members
-      const user = allUsers.find(u => u.id === userId);
-      if (user) {
-        const teamMember: TeamMember = {
-          id: userId,
-          email: user.email,
-          role: newRole,
-          joinedAt: new Date().toISOString()
-        };
-        await addTeamMember(teamId, teamMember);
-      }
-      
-      // Refresh teams data
-      const updatedTeams = await getAllTeams();
-      setTeams(updatedTeams);
-      
-      toast({
-        title: 'Role updated',
-        description: `User role has been changed to ${newRole}.`,
-      });
-    } catch (error) {
-      console.error('Failed to update user role:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update user role. Please try again.',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const handleRemoveUserFromTeam = async (userId: string, teamId: string) => {
-    try {
-      await removeTeamMember(teamId, userId);
-      
-      // Update user's teamId to undefined
-      const user = allUsers.find(u => u.id === userId);
-      if (user) {
-        await updateUser(userId, { ...user, teamId: undefined });
-      }
-      
-      // Refresh data
-      const [updatedTeams, updatedUsers] = await Promise.all([
-        getAllTeams(),
-        getAllUsers()
-      ]);
-      setTeams(updatedTeams);
-      setAllUsers(updatedUsers);
-      
-      toast({
-        title: 'User removed from team',
-        description: 'User has been removed from the team.',
-      });
-    } catch (error) {
-      console.error('Failed to remove user from team:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to remove user from team. Please try again.',
-        variant: 'destructive'
-      });
-    }
-  };
-
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground">Loading settings...</p>
+        </div>
       </div>
     );
   }
@@ -424,378 +179,261 @@ export default function SettingsPage() {
   return (
     <AuthGuard>
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-        <header className="border-b border-border/50 backdrop-blur-sm bg-background/80 p-6 sm:p-8">
-          <div className="flex items-center gap-6">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.push('/')}
-              className="h-12 w-12 rounded-full hover:bg-primary/10 transition-all duration-300 border border-border/30"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/20 backdrop-blur-sm">
-                <BookMarked className="size-7 text-primary animate-glow" />
+        {/* Header */}
+        <header className="sticky top-0 z-10 border-b border-border/50 backdrop-blur-md bg-background/80">
+          <div className="max-w-4xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => router.push('/')}
+                  className="h-10 w-10 rounded-full hover:bg-primary/10 transition-all duration-200"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-primary/10">
+                    <BookMarked className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h1 className="text-lg font-semibold">Settings</h1>
+                    <p className="text-sm text-muted-foreground">Manage your account and team</p>
+                  </div>
+                </div>
               </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">The Prompt Keeper</span>
-            </div>
-            <div className="flex items-center gap-3 ml-auto bg-background/50 backdrop-blur-sm rounded-full px-4 py-2 border border-border/30">
-              <Settings className="h-6 w-6 text-primary" />
-              <span className="font-semibold text-lg">Settings</span>
+
+              {isSuperUser(currentUser) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push('/super-admin')}
+                  className="gap-2"
+                >
+                  <Crown className="h-4 w-4 text-amber-500" />
+                  Admin Panel
+                </Button>
+              )}
             </div>
           </div>
         </header>
 
-        <main className="p-6 sm:p-8 max-w-6xl mx-auto space-y-8">
-          {/* Super User Team Management */}
-          {isSuperUser(currentUser) && (
-            <Card className="border-0 glass-light hover:shadow-xl hover:shadow-primary/10 transition-all-smooth group">
-              <CardHeader className="pb-6">
-                <CardTitle className="text-2xl font-bold flex items-center gap-3 group-hover:text-primary transition-colors duration-300">
-                  <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-300">
-                    <Crown className="h-6 w-6 text-primary" />
-                  </div>
-                  Super Admin - Team Management
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-8">
-                {/* Create Team */}
-                <div className="space-y-4 p-6 bg-background/50 backdrop-blur-sm rounded-xl border border-border/30">
-                  <Label className="text-lg font-semibold">Create New Team</Label>
-                  <form onSubmit={handleCreateTeam} className="flex gap-3">
-                    <Input
-                      placeholder="Team name"
-                      value={newTeamName}
-                      onChange={(e) => setNewTeamName(e.target.value)}
-                      className="flex-1 bg-background/50 backdrop-blur-sm border-border/50"
-                    />
-                    <Button type="submit" className="gap-3 px-6 gradient-primary">
-                      <Plus className="h-5 w-5" />
-                      Create Team
-                    </Button>
-                  </form>
+        <main className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+          {/* Account Section */}
+          <Card className="border-border/50 shadow-sm">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <UserIcon className="h-5 w-5 text-primary" />
                 </div>
-
-                {/* Teams List */}
-                <div className="space-y-4">
-                  <Label className="text-lg font-semibold">All Teams ({teams.length})</Label>
-                  <div className="space-y-4">
-                    {teams.map((team) => (
-                      <Card key={team.id} className="border-border/30">
-                        <CardContent className="p-6">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-4">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleTeamExpansion(team.id)}
-                                className="p-1 h-8 w-8"
-                              >
-                                {expandedTeams[team.id] ? (
-                                  <ChevronDown className="h-4 w-4" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4" />
-                                )}
-                              </Button>
-                              <Building className="h-6 w-6 text-primary" />
-                              <div>
-                                <h3 className="font-semibold text-lg">{team.name}</h3>
-                                <p className="text-sm text-muted-foreground">
-                                  {team.members.length} members • ID: {team.id}
-                                </p>
-                              </div>
-                            </div>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="hover:bg-destructive/10 hover:text-destructive">
-                                  <Trash2 className="h-5 w-5" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete team</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete team "{team.name}"? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDeleteTeam(team.id, team.name)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-
-                          {/* Team Members - Collapsible */}
-                          {expandedTeams[team.id] && (
-                            <div className="space-y-3 border-t border-border/30 pt-4">
-                              <div className="flex items-center justify-between">
-                                <Label className="font-medium">Team Members</Label>
-                                <div className="flex gap-2">
-                                  <Input
-                                    placeholder="User email"
-                                    value={teamInputValues[team.id] || ''}
-                                    onChange={(e) => updateTeamInputValue(team.id, e.target.value)}
-                                    className="w-48 h-8"
-                                  />
-                                  <Button
-                                    size="sm"
-                                    onClick={() => {
-                                      const email = teamInputValues[team.id]?.trim();
-                                      if (email) {
-                                        handleAddUserToTeam(email, team.id);
-                                      }
-                                    }}
-                                    className="h-8"
-                                  >
-                                    <UserPlus className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                              
-                              {team.members.length > 0 ? (
-                                <div className="grid gap-2">
-                                  {team.members.map((member) => (
-                                    <div key={member.id} className="flex items-center justify-between p-3 bg-background/30 rounded-lg">
-                                      <div className="flex items-center gap-3">
-                                        <UserIcon className="h-4 w-4 text-muted-foreground" />
-                                        <span className="font-medium">{member.email}</span>
-                                        <Badge variant={member.role === 'admin' ? 'default' : 'secondary'}>
-                                          {member.role}
-                                        </Badge>
-                                      </div>
-                                      <div className="flex items-center gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleToggleUserRole(member.id, team.id, member.role)}
-                                          className="h-8"
-                                        >
-                                          <Shield className="h-4 w-4" />
-                                          {member.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleRemoveUserFromTeam(member.id, team.id)}
-                                          className="h-8 hover:bg-destructive/10 hover:text-destructive"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-sm text-muted-foreground text-center py-4">No members in this team</p>
-                              )}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                <div>
+                  <CardTitle className="text-lg">Account</CardTitle>
+                  <CardDescription>Your personal account information</CardDescription>
                 </div>
-
-                {/* All Users */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setExpandedUsersList(!expandedUsersList)}
-                      className="p-1 h-8 w-8"
-                    >
-                      {expandedUsersList ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <Label className="text-lg font-semibold">All Users ({allUsers.length})</Label>
-                  </div>
-                  
-                  {expandedUsersList && (
-                    <div className="grid gap-3">
-                      {allUsers.map((user) => (
-                        <div key={user.id} className="flex items-center justify-between p-4 bg-background/30 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <UserIcon className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                              <span className="font-medium">{user.email}</span>
-                              {user.role === 'super_user' && (
-                                <Badge variant="default" className="ml-2">Super User</Badge>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {user.teamId && (
-                              <Badge variant="outline">
-                                Team: {teams.find(t => t.id === user.teamId)?.name || 'Unknown Team'}
-                              </Badge>
-                            )}
-                            {!user.teamId && user.role !== 'super_user' && (
-                              <Badge variant="secondary">No Team</Badge>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Account Settings */}
-          <Card className="border-0 glass-light hover:shadow-xl hover:shadow-primary/10 transition-all-smooth group">
-            <CardHeader className="pb-6">
-              <CardTitle className="text-2xl font-bold flex items-center gap-3 group-hover:text-primary transition-colors duration-300">
-                <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-300">
-                  <Settings className="h-6 w-6 text-primary" />
-                </div>
-                Account
-              </CardTitle>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <Label className="text-base font-medium">Email</Label>
-                <Input 
-                  value={currentUser?.email || ''} 
-                  disabled 
-                  className="bg-background/50 backdrop-blur-sm border-border/50 text-base"
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Email Address</Label>
+                  <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{currentUser?.email || 'Not set'}</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Role</Label>
+                  <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium capitalize">{currentUser?.role || 'User'}</span>
+                    {isSuperUser(currentUser) && (
+                      <Badge variant="default" className="ml-auto bg-amber-500/10 text-amber-600 border-amber-500/20">
+                        <Crown className="h-3 w-3 mr-1" />
+                        Admin
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="pt-6 border-t border-border/30">
+
+              <Separator />
+
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => currentUser?.email && handleSendPasswordReset(currentUser.email)}
+                  className="gap-2"
+                >
+                  <KeyRound className="h-4 w-4" />
+                  Reset Password
+                </Button>
                 <Button
                   variant="outline"
                   onClick={handleLogout}
-                  className="gap-3 px-6 py-3 rounded-full hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-all duration-300"
+                  className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
                 >
-                  <LogOut className="h-5 w-5" />
-                  Sign out
+                  <LogOut className="h-4 w-4" />
+                  Sign Out
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Team Management */}
-          <Card className="border-0 glass-light hover:shadow-xl hover:shadow-primary/10 transition-all-smooth group">
-            <CardHeader className="pb-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-full bg-accent/10 group-hover:bg-accent/20 transition-colors duration-300">
-                  <Users className="h-6 w-6 text-accent" />
+          {/* Team Section */}
+          <Card className="border-border/50 shadow-sm">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-500/10">
+                    <Building2 className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Team</CardTitle>
+                    <CardDescription>
+                      {currentTeam ? currentTeam.name : 'You are not part of any team'}
+                    </CardDescription>
+                  </div>
                 </div>
-                <CardTitle className="text-2xl font-bold group-hover:text-accent transition-colors duration-300">Team Management</CardTitle>
+                {isUserAdminState && (
+                  <Badge variant="secondary" className="gap-1">
+                    <Shield className="h-3 w-3" />
+                    Team Admin
+                  </Badge>
+                )}
               </div>
-              <p className="text-muted-foreground text-base leading-relaxed">
-                Manage your team members and their access to shared prompts.
-              </p>
             </CardHeader>
-            <CardContent className="space-y-8">
-              {/* Add Team Member */}
-              {isUserAdminState && currentUser?.teamId && (
-                <div className="space-y-4 p-6 bg-background/50 backdrop-blur-sm rounded-xl border border-border/30">
-                  <Label className="text-lg font-semibold">Add Team Member to {currentTeamName || teams.find(t => t.id === currentUser?.teamId)?.name || 'Team'}</Label>
-                  <form onSubmit={handleAddMember} className="flex gap-3">
-                    <Input
-                      type="email"
-                      placeholder="Enter email address"
-                      value={newMemberEmail}
-                      onChange={(e) => setNewMemberEmail(e.target.value)}
-                      className="flex-1 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20"
-                    />
-                    <Button type="submit" className="gap-3 px-6 gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300">
-                      <UserPlus className="h-5 w-5" />
-                      Invite
-                    </Button>
-                  </form>
+            <CardContent className="space-y-6">
+              {currentUser?.teamId && currentTeam ? (
+                <>
+                  {/* Add Team Member - Only for admins */}
+                  {isUserAdminState && (
+                    <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
+                      <Label className="text-sm font-medium mb-3 block">Add Team Member</Label>
+                      <form onSubmit={handleAddMember} className="flex gap-2">
+                        <Input
+                          type="email"
+                          placeholder="Enter email address"
+                          value={newMemberEmail}
+                          onChange={(e) => setNewMemberEmail(e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button type="submit" size="sm" className="gap-2">
+                          <UserPlus className="h-4 w-4" />
+                          Add
+                        </Button>
+                      </form>
+                    </div>
+                  )}
+
+                  {/* Team Members List */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Team Members</Label>
+                      <span className="text-sm text-muted-foreground">{teamMembers.length} members</span>
+                    </div>
+                    <div className="divide-y divide-border/50 rounded-lg border border-border/50 overflow-hidden">
+                      {teamMembers.map((member) => (
+                        <div
+                          key={member.id}
+                          className="flex items-center justify-between p-3 bg-card hover:bg-muted/30 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              <UserIcon className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{member.email}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Calendar className="h-3 w-3" />
+                                Joined {new Date(member.joinedAt).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={member.role === 'admin' ? 'default' : 'secondary'} className="text-xs">
+                              {member.role}
+                            </Badge>
+                            {isUserAdminState && member.role !== 'admin' && member.id !== currentUser.id && (
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleSendPasswordReset(member.email)}
+                                  className="h-8 w-8 hover:bg-primary/10"
+                                >
+                                  <KeyRound className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Remove team member</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to remove {member.email} from your team?
+                                        They will lose access to all team prompts.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleRemoveMember(member.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Remove
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {teamMembers.length === 0 && (
+                        <div className="p-8 text-center text-muted-foreground">
+                          <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No team members yet</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="p-8 text-center">
+                  <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                    <Users className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-muted-foreground text-sm">
+                    You're not part of a team yet. Contact your administrator to be added to a team.
+                  </p>
                 </div>
               )}
+            </CardContent>
+          </Card>
 
-              {/* Team Members List */}
-              <div className="space-y-4">
-                <Label className="text-lg font-semibold">
-                  {currentTeamName || teams.find(t => t.id === currentUser?.teamId)?.name || 'Team'} Members ({teamMembers.length})
-                </Label>
-                <div className="space-y-3">
-                  {teamMembers.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between p-4 glass-light rounded-xl hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 group"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <p className="font-semibold text-base group-hover:text-primary transition-colors duration-300">{member.email}</p>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Joined {new Date(member.joinedAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <Badge variant={member.role === 'admin' ? 'default' : 'secondary'} className="px-3 py-1 font-medium">
-                          {member.role}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {member.role !== 'admin' &&
-                         isUserAdminState &&
-                         currentUser?.teamId && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => handleSendPasswordReset(member.email)}
-                              className="h-10 w-10 rounded-full hover:bg-primary/10 hover:text-primary transition-all duration-300"
-                            >
-                              <KeyRound className="h-5 w-5" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full hover:bg-destructive/10 hover:text-destructive transition-all duration-300">
-                                  <Trash2 className="h-5 w-5" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Remove team member</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to remove {member.email} from your team?
-                                    They will lose access to all shared prompts.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleRemoveMember(member.id)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Remove
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+          {/* Quick Info */}
+          <Card className="border-border/50 shadow-sm bg-muted/30">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-primary/10 shrink-0">
+                  <Shield className="h-4 w-4 text-primary" />
                 </div>
-              </div>
-
-              {/* Team Info */}
-              <div className="p-6 glass-light rounded-xl border border-primary/20">
-                <h4 className="font-semibold text-lg mb-4 text-primary">Team Features</h4>
-                <ul className="text-muted-foreground space-y-2 leading-relaxed">
-                  <li>• Team members can view and edit prompts shared with the team</li>
-                  <li>• Only admins can invite or remove team members</li>
-                  <li>• Private prompts remain visible only to their creator</li>
-                  <li>• Community prompts are visible to everyone</li>
-                </ul>
+                <div className="text-sm">
+                  <p className="font-medium mb-1">About Sharing</p>
+                  <ul className="text-muted-foreground space-y-1">
+                    <li>• <strong>Private</strong> prompts are visible only to you</li>
+                    <li>• <strong>Team</strong> prompts are shared with all team members</li>
+                    <li>• <strong>Community</strong> prompts are visible to everyone</li>
+                  </ul>
+                </div>
               </div>
             </CardContent>
           </Card>
