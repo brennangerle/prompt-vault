@@ -74,10 +74,10 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
   };
   
   return (
-    <Card className="w-full mb-6 sm:mb-8 border-0 glass-light group hover:shadow-xl hover:shadow-primary/10 transition-all-smooth">
+    <Card className="w-full mb-6 sm:mb-8 border border-border/50 bg-card/50 backdrop-blur-sm group hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
         <CardHeader className="py-5">
-            <CardTitle className="text-xl font-semibold flex items-center gap-3 text-foreground group-hover:text-primary transition-colors duration-300">
-                <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-300">
+            <CardTitle className="text-lg sm:text-xl font-semibold flex items-center gap-3 text-foreground group-hover:text-primary transition-colors duration-300">
+                <div className="p-2.5 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors duration-300">
                     <Plus className="size-5 text-primary" />
                 </div>
                 Add New Prompt
@@ -96,7 +96,7 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
                         <div className="relative group/textarea">
                         <Textarea
                             placeholder="Paste your prompt here to add it to your repository. We'll use AI to automatically generate a title and tags."
-                            className="min-h-[120px] font-mono pr-14 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 focus:bg-background/70 transition-all duration-300 resize-none"
+                            className="min-h-[140px] font-mono text-sm pr-14 bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:bg-background transition-all duration-300 resize-none"
                             {...field}
                         />
                         <div className="absolute bottom-3 right-3">
@@ -131,13 +131,22 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
                 )}
                 
                 <div className="flex justify-end pt-2">
-                    <Button 
-                        type="submit" 
-                        disabled={isLoading || form.formState.isSubmitting} 
-                        className="w-full sm:w-auto gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 font-medium px-6 py-2.5"
+                    <Button
+                        type="submit"
+                        disabled={isLoading || form.formState.isSubmitting || !contentValue || contentValue.length < 20}
+                        className="w-full sm:w-auto gap-2 font-medium px-6 py-2.5 transition-all duration-300"
                     >
-                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Add Prompt to Repository
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4" />
+                            Add Prompt
+                          </>
+                        )}
                     </Button>
                 </div>
             </form>

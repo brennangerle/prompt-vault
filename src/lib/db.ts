@@ -1,10 +1,10 @@
-import { 
-  ref, 
-  push, 
-  set, 
-  get, 
-  remove, 
-  onValue, 
+import {
+  ref,
+  push,
+  set,
+  get,
+  remove,
+  onValue,
   query,
   orderByChild,
   equalTo,
@@ -16,6 +16,10 @@ import { database } from './firebase';
 import type { Prompt, User, TeamMember, Team } from './types';
 import { canEditPrompt, canDeletePrompt } from './permissions';
 import { getCurrentUser } from './auth';
+import { logger } from './logger';
+
+// Email verification expiration time (7 days in milliseconds)
+const EMAIL_VERIFICATION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Database structure:
 // /users/{userId} -> User
@@ -25,7 +29,7 @@ import { getCurrentUser } from './auth';
 
 // User operations
 export async function createUser(userData: Omit<User, 'id'>): Promise<string> {
-  console.log('Creating user with data:', userData);
+  logger.debug('Creating user', { context: { email: userData.email } });
   const usersRef = ref(database, 'users');
   const newUserRef = push(usersRef);
   const normalizedUserData: Omit<User, 'id'> = {
@@ -33,27 +37,25 @@ export async function createUser(userData: Omit<User, 'id'>): Promise<string> {
     email: userData.email.toLowerCase()
   };
   await set(newUserRef, normalizedUserData);
-  console.log('User created with ID:', newUserRef.key);
-  
+  logger.debug('User created', { context: { userId: newUserRef.key } });
+
   // Also create email verification entry for first-time login
-  console.log('Creating email verification entry for user:', normalizedUserData.email);
   await createEmailVerificationEntry(normalizedUserData.email, newUserRef.key!, normalizedUserData.teamId);
-  
+
   return newUserRef.key!;
 }
 
 export async function createUserWithUid(userId: string, userData: Omit<User, 'id'>): Promise<void> {
-  console.log('Creating user with data for UID:', userId, userData);
+  logger.debug('Creating user with UID', { context: { userId, email: userData.email } });
   const userRef = ref(database, `users/${userId}`);
   const normalizedUserData: Omit<User, 'id'> = {
     ...userData,
     email: userData.email.toLowerCase()
   };
   await set(userRef, normalizedUserData);
-  console.log('User created with ID:', userId);
+  logger.debug('User created', { context: { userId } });
 
   // Also create email verification entry for first-time login
-  console.log('Creating email verification entry for user:', normalizedUserData.email);
   await createEmailVerificationEntry(normalizedUserData.email, userId, normalizedUserData.teamId);
 }
 
@@ -242,77 +244,116 @@ export async function getAllUsers(): Promise<User[]> {
 
 // Special function for email verification during first-time login
 // This creates a copy of user email data in a publicly readable location
+// SECURITY NOTE: This data is publicly readable. The userId is required for the
+// first-time login flow but exposes user mapping. Consider adding server-side
+// verification in the future.
 export async function createEmailVerificationEntry(email: string, userId: string, teamId?: string): Promise<void> {
   const normalizedEmail = email.toLowerCase();
   const emailKey = normalizedEmail.replace(/[.@]/g, '_'); // Firebase keys can't contain . or @
   const verificationRef = ref(database, `email-verification/${emailKey}`);
-  
-  // Create data object, only including teamId if it exists
-  const verificationData: any = {
+
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + EMAIL_VERIFICATION_EXPIRY_MS);
+
+  // Create data object with expiration
+  const verificationData: {
+    email: string;
+    userId: string;
+    createdAt: string;
+    expiresAt: string;
+    teamId?: string;
+  } = {
     email: normalizedEmail,
     userId: userId,
-    createdAt: new Date().toISOString()
+    createdAt: now.toISOString(),
+    expiresAt: expiresAt.toISOString(),
   };
-  
+
   // Only add teamId if it's defined
   if (teamId) {
     verificationData.teamId = teamId;
   }
-  
-  console.log('Creating email verification entry:', { email: normalizedEmail, emailKey, userId, teamId, verificationData });
+
+  logger.debug('Creating email verification entry', { context: { email: normalizedEmail } });
   await set(verificationRef, verificationData);
-  console.log('Email verification entry created successfully');
+  logger.debug('Email verification entry created');
 }
 
-export async function verifyEmailExists(email: string): Promise<{ exists: boolean; userId?: string; email?: string; teamId?: string }> {
+export async function verifyEmailExists(email: string): Promise<{
+  exists: boolean;
+  expired?: boolean;
+  userId?: string;
+  email?: string;
+  teamId?: string;
+}> {
   const normalizedEmail = email.toLowerCase();
   const emailKey = normalizedEmail.replace(/[.@]/g, '_');
   const verificationRef = ref(database, `email-verification/${emailKey}`);
-  console.log('Checking email verification for:', { email: normalizedEmail, emailKey, path: `email-verification/${emailKey}` });
-  
+  logger.debug('Checking email verification', { context: { email: normalizedEmail } });
+
   const snapshot = await get(verificationRef);
-  console.log('Email verification snapshot exists:', snapshot.exists());
-  
+
   if (snapshot.exists()) {
     const data = snapshot.val();
-    console.log('Email verification data found:', data);
-    return { 
-      exists: true, 
+
+    // Check if entry has expired
+    if (data.expiresAt) {
+      const expiresAt = new Date(data.expiresAt);
+      if (expiresAt < new Date()) {
+        logger.debug('Email verification entry expired', { context: { email: normalizedEmail } });
+        return { exists: true, expired: true };
+      }
+    }
+
+    logger.debug('Email verification found', { context: { email: normalizedEmail } });
+    return {
+      exists: true,
+      expired: false,
       userId: data.userId,
       email: data.email,
       teamId: data.teamId
     };
   }
-  
-  console.log('Email verification entry not found');
+
+  logger.debug('Email verification entry not found', { context: { email: normalizedEmail } });
   return { exists: false };
 }
 
 // Utility function to ensure all users have email verification entries
 export async function ensureEmailVerificationEntries(): Promise<void> {
   const users = await getAllUsers();
-  console.log('Checking email verification entries for', users.length, 'users');
-  
+  logger.info('Checking email verification entries', { context: { userCount: users.length } });
+
   for (const user of users) {
-    console.log('Checking user:', user.email);
     const emailVerification = await verifyEmailExists(user.email);
-    if (!emailVerification.exists) {
-      console.log(`Creating missing email verification entry for user: ${user.email}`);
+    if (!emailVerification.exists || emailVerification.expired) {
+      logger.debug('Creating/refreshing email verification entry', { context: { email: user.email } });
       await createEmailVerificationEntry(user.email, user.id, user.teamId);
-    } else {
-      console.log(`Email verification entry already exists for user: ${user.email}`);
     }
   }
+  logger.info('Email verification entries check complete');
 }
 
 // Utility function to list all email verification entries
-export async function listEmailVerificationEntries(): Promise<any[]> {
+export async function listEmailVerificationEntries(): Promise<Array<{
+  key: string;
+  email: string;
+  createdAt?: string;
+  expiresAt?: string;
+  teamId?: string;
+  expired: boolean;
+}>> {
   const emailVerificationRef = ref(database, 'email-verification');
   const snapshot = await get(emailVerificationRef);
-  
+
   if (snapshot.exists()) {
     const data = snapshot.val();
-    return Object.entries(data).map(([key, value]) => ({ key, ...(value as any) }));
+    const now = new Date();
+    return Object.entries(data).map(([key, value]) => {
+      const entry = value as { email: string; createdAt?: string; expiresAt?: string; teamId?: string };
+      const expired = entry.expiresAt ? new Date(entry.expiresAt) < now : false;
+      return { key, ...entry, expired };
+    });
   }
   return [];
 }
@@ -402,21 +443,12 @@ export async function getPromptsByUser(userId: string): Promise<Prompt[]> {
 }
 
 export async function getPromptsBySharing(
-  sharing: 'private' | 'global'
+  sharing: 'private' | 'team' | 'global'
 ): Promise<Prompt[]> {
   const promptsRef = ref(database, 'prompts');
-  let snapshot;
-  
-  if (sharing === 'private') {
-    // Private: only prompts with 'private' sharing
-    const sharingQuery = query(promptsRef, orderByChild('sharing'), equalTo('private'));
-    snapshot = await get(sharingQuery);
-  } else if (sharing === 'global') {
-    // Community: only prompts with 'global' sharing
-    const sharingQuery = query(promptsRef, orderByChild('sharing'), equalTo('global'));
-    snapshot = await get(sharingQuery);
-  }
-  
+  const sharingQuery = query(promptsRef, orderByChild('sharing'), equalTo(sharing));
+  const snapshot = await get(sharingQuery);
+
   if (snapshot && snapshot.exists()) {
     const promptsData = snapshot.val();
     let prompts = Object.keys(promptsData).map(promptId => ({
@@ -432,7 +464,7 @@ export async function getPromptsBySharing(
 export function subscribeToPrompts(
   callback: (prompts: Prompt[]) => void,
   userId?: string,
-  sharing?: 'private' | 'global'
+  sharing?: 'private' | 'team' | 'global'
 ): () => void {
   let promptsRef: Query | DatabaseReference;
 
@@ -456,6 +488,24 @@ export function subscribeToPrompts(
 
   if (sharing === 'global') {
     promptsRef = query(ref(database, 'prompts'), orderByChild('sharing'), equalTo('global'));
+    const unsubscribe = onValue(promptsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const promptsData = snapshot.val();
+        const prompts = Object.keys(promptsData).map(promptId => ({
+          id: promptId,
+          ...promptsData[promptId]
+        }));
+        callback(prompts);
+      } else {
+        callback([]);
+      }
+    });
+    return unsubscribe;
+  }
+
+  if (sharing === 'team') {
+    // For team view: prompts with team sharing
+    promptsRef = query(ref(database, 'prompts'), orderByChild('sharing'), equalTo('team'));
     const unsubscribe = onValue(promptsRef, (snapshot) => {
       if (snapshot.exists()) {
         const promptsData = snapshot.val();
