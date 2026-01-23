@@ -52,7 +52,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { AuthGuard } from '@/components/auth-guard';
 import { useToast } from '@/hooks/use-toast';
-import { 
+import {
   getAllTeams,
   createTeam,
   deleteTeam,
@@ -69,6 +69,13 @@ import {
 import { useUser } from '@/lib/user-context';
 import { canAccessSuperAdmin, isSuperUser } from '@/lib/permissions';
 import type { Team, User, TeamMember, Prompt } from '@/lib/types';
+import {
+  auditTeamCreated,
+  auditTeamDeleted,
+  auditTeamMemberAdded,
+  auditTeamMemberRemoved,
+  auditUserCreated,
+} from '@/lib/audit';
 
 export default function SuperAdminPage() {
   const { currentUser, isLoading } = useUser();
@@ -142,7 +149,10 @@ export default function SuperAdminPage() {
         name: newTeamName.trim(),
         createdBy: currentUser.id
       });
-      
+
+      // Audit log team creation
+      await auditTeamCreated(currentUser.id, currentUser.email, teamId, newTeamName.trim());
+
       const newTeam: Team = {
         id: teamId,
         name: newTeamName.trim(),
@@ -150,7 +160,7 @@ export default function SuperAdminPage() {
         createdBy: currentUser.id,
         createdAt: new Date().toISOString()
       };
-      
+
       setTeams([...teams, newTeam]);
       setNewTeamName('');
       toast({
@@ -170,6 +180,12 @@ export default function SuperAdminPage() {
   const handleDeleteTeam = async (teamId: string, teamName: string) => {
     try {
       await deleteTeam(teamId);
+
+      // Audit log team deletion
+      if (currentUser) {
+        await auditTeamDeleted(currentUser.id, currentUser.email, teamId, teamName);
+      }
+
       setTeams(teams.filter(team => team.id !== teamId));
       toast({
         title: 'Team deleted',
@@ -637,8 +653,6 @@ Problem to solve:
 
   const handleAddUserToTeam = async (userEmail: string, teamId: string) => {
     try {
-      console.log('Adding user to team:', { userEmail, teamId });
-      
       // Basic email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(userEmail)) {
@@ -653,8 +667,7 @@ Problem to solve:
       // Check if user exists
       let user = users.find(u => u.email === userEmail);
       let isNewUser = false;
-      console.log('Existing user found:', user ? 'Yes' : 'No');
-      
+
       // Check if user is already in this team
       const team = teams.find(t => t.id === teamId);
       if (team?.members.some(m => m.email === userEmail)) {
@@ -665,7 +678,7 @@ Problem to solve:
         });
         return;
       }
-      
+
       if (!user) {
         // Create new user if doesn't exist
         const userData: Omit<User, 'id'> = {
@@ -673,15 +686,17 @@ Problem to solve:
           teamId: teamId,
           role: 'user'
         };
-        
-        console.log('Creating new user:', userData);
+
         const userId = await createUser(userData);
         user = { id: userId, ...userData };
         isNewUser = true;
-        console.log('New user created with ID:', userId);
+
+        // Audit log user creation
+        if (currentUser) {
+          await auditUserCreated(currentUser.id, currentUser.email, userId, userEmail);
+        }
       } else {
         // Update existing user's teamId
-        console.log('Updating existing user teamId');
         await updateUser(user.id, { ...user, teamId });
       }
 
@@ -692,12 +707,16 @@ Problem to solve:
         joinedAt: new Date().toISOString()
       };
 
-      console.log('Adding team member:', teamMember);
       await addTeamMember(teamId, teamMember);
-      
+
+      // Audit log team member addition
+      if (currentUser) {
+        await auditTeamMemberAdded(currentUser.id, currentUser.email, teamId, user.id, userEmail);
+      }
+
       // Clear the specific team's input
       setTeamInputValues(prev => ({ ...prev, [teamId]: '' }));
-      
+
       // Refresh data
       const [updatedTeams, updatedUsers] = await Promise.all([
         getAllTeams(),
@@ -705,7 +724,7 @@ Problem to solve:
       ]);
       setTeams(updatedTeams);
       setUsers(updatedUsers);
-      
+
       toast({
         title: 'User added to team',
         description: `${userEmail} has been ${isNewUser ? 'created and ' : ''}added to the team.`,
@@ -757,7 +776,7 @@ Problem to solve:
   const handleRemoveUserFromTeam = async (userId: string, teamId: string) => {
     try {
       await removeTeamMember(teamId, userId);
-      
+
       // Update user to remove teamId property
       const user = users.find(u => u.id === userId);
       if (user) {
@@ -765,7 +784,12 @@ Problem to solve:
         const { teamId: _, ...userWithoutTeamId } = user;
         await updateUser(userId, userWithoutTeamId);
       }
-      
+
+      // Audit log team member removal
+      if (currentUser) {
+        await auditTeamMemberRemoved(currentUser.id, currentUser.email, teamId, userId, user?.email);
+      }
+
       // Refresh data
       const [updatedTeams, updatedUsers] = await Promise.all([
         getAllTeams(),
@@ -773,7 +797,7 @@ Problem to solve:
       ]);
       setTeams(updatedTeams);
       setUsers(updatedUsers);
-      
+
       toast({
         title: 'User removed from team',
         description: 'User has been removed from the team.',

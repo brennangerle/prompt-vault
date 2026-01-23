@@ -6,7 +6,20 @@
     "public": { ".read": true, ".write": false },
 
     "email-verification": {
-      "$id": { ".read": true, ".write": "auth != null" }
+      "$id": {
+        ".read": true,
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['email', 'createdAt']) && newData.child('email').isString()"
+      }
+    },
+
+    "audit-logs": {
+      ".indexOn": ["timestamp", "userId", "action"],
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
+      ".write": "auth != null",
+      "$logId": {
+        ".validate": "newData.hasChildren(['action', 'userId', 'timestamp'])"
+      }
     },
 
     "users": {
