@@ -79,11 +79,11 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
   return (
     <Card className="w-full group transition-all duration-300 ease-out hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-0.5 border border-border/50 bg-card/50 backdrop-blur-sm">
       {/* Collapsed View - Always visible */}
-      <div className="flex items-center justify-between p-4 gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 gap-3 sm:gap-4">
         <div className="flex-1 min-w-0">
-          <CardTitle className="text-base sm:text-lg font-semibold text-foreground group-hover:text-primary transition-colors duration-300 truncate pr-2">{prompt.title}</CardTitle>
+          <CardTitle className="text-base sm:text-lg font-semibold text-foreground group-hover:text-primary transition-colors duration-300 line-clamp-2 sm:truncate pr-2">{prompt.title}</CardTitle>
           {isExpanded && (
-            <div className="flex flex-wrap items-center gap-2 mt-3">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2 sm:mt-3">
               {prompt.tags.map((tag) => (
                 <Badge key={tag} variant="secondary" className="bg-primary/5 hover:bg-primary/10 text-foreground/80 transition-colors duration-200 font-medium text-xs">
                   {tag}
@@ -98,19 +98,19 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
             </div>
           )}
         </div>
-        
-        <div className="flex items-center gap-2 shrink-0">
+
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap sm:flex-nowrap">
             {/* Sharing indicator */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center space-x-2 bg-background/50 backdrop-blur-sm rounded-full px-2.5 py-1.5 border border-border/30">
+                  <div className="flex items-center space-x-1.5 sm:space-x-2 bg-background/50 backdrop-blur-sm rounded-full px-2 sm:px-2.5 py-1 sm:py-1.5 border border-border/30">
                     {prompt.sharing === 'global' ? (
-                      <Globe className="h-3 w-3 text-emerald-500" />
+                      <Globe className="h-3.5 w-3.5 sm:h-3 sm:w-3 text-emerald-500" />
                     ) : prompt.sharing === 'team' ? (
-                      <Users className="h-3 w-3 text-blue-500" />
+                      <Users className="h-3.5 w-3.5 sm:h-3 sm:w-3 text-blue-500" />
                     ) : (
-                      <Lock className="h-3 w-3 text-muted-foreground" />
+                      <Lock className="h-3.5 w-3.5 sm:h-3 sm:w-3 text-muted-foreground" />
                     )}
                     <span className={`text-xs font-medium ${
                       prompt.sharing === 'global' ? 'text-emerald-600' :
@@ -135,13 +135,13 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/10 hover:glow-primary transition-all duration-300 border border-border/30"
+                  className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/10 hover:glow-primary transition-all duration-300 border border-border/30 touch-manipulation"
                   onClick={handleCopy}
                 >
                   {isCopied ? (
-                    <Check className="h-3.5 w-3.5 text-primary" />
+                    <Check className="h-4 w-4 sm:h-3.5 sm:w-3.5 text-primary" />
                   ) : (
-                    <Copy className="h-3.5 w-3.5 group-hover:text-primary transition-colors duration-300" />
+                    <Copy className="h-4 w-4 sm:h-3.5 sm:w-3.5 group-hover:text-primary transition-colors duration-300" />
                   )}
                 </Button>
               </TooltipTrigger>
@@ -158,13 +158,13 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/10 transition-all duration-300 border border-border/30"
+                  className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/10 transition-all duration-300 border border-border/30 touch-manipulation"
                   onClick={() => setIsExpanded(!isExpanded)}
                 >
                   {isExpanded ? (
-                    <ChevronUp className="h-3.5 w-3.5 group-hover:text-primary transition-colors duration-300" />
+                    <ChevronUp className="h-4 w-4 sm:h-3.5 sm:w-3.5 group-hover:text-primary transition-colors duration-300" />
                   ) : (
-                    <ChevronDown className="h-3.5 w-3.5 group-hover:text-primary transition-colors duration-300" />
+                    <ChevronDown className="h-4 w-4 sm:h-3.5 sm:w-3.5 group-hover:text-primary transition-colors duration-300" />
                   )}
                 </Button>
               </TooltipTrigger>
@@ -178,8 +178,8 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
           {canEdit && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/10 transition-all duration-300 border border-border/30 shrink-0">
-                  <MoreVertical className="h-3.5 w-3.5 group-hover:text-primary transition-colors duration-300" />
+                <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-background/50 backdrop-blur-sm hover:bg-primary/10 transition-all duration-300 border border-border/30 shrink-0 touch-manipulation">
+                  <MoreVertical className="h-4 w-4 sm:h-3.5 sm:w-3.5 group-hover:text-primary transition-colors duration-300" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -240,9 +240,9 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
 
       {/* Expanded View - Only visible when expanded */}
       {isExpanded && (
-        <div className="px-4 pb-4 space-y-4 border-t border-border/30 pt-4 animate-in slide-in-from-top-2 duration-200">
+        <div className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3 sm:space-y-4 border-t border-border/30 pt-3 sm:pt-4 animate-in slide-in-from-top-2 duration-200">
           <div className="relative">
-            <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-mono bg-muted/40 p-4 rounded-lg border border-border/30 leading-relaxed overflow-x-auto max-h-[400px] overflow-y-auto">
+            <pre className="text-xs sm:text-sm text-foreground/80 whitespace-pre-wrap break-words font-mono bg-muted/40 p-3 sm:p-4 rounded-lg border border-border/30 leading-relaxed max-h-[300px] sm:max-h-[400px] overflow-y-auto">
               {prompt.content}
             </pre>
           </div>

@@ -181,24 +181,24 @@ export default function SettingsPage() {
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
         {/* Header */}
         <header className="sticky top-0 z-10 border-b border-border/50 backdrop-blur-md bg-background/80">
-          <div className="max-w-4xl mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => router.push('/')}
-                  className="h-10 w-10 rounded-full hover:bg-primary/10 transition-all duration-200"
+                  className="h-10 w-10 rounded-full hover:bg-primary/10 transition-all duration-200 shrink-0 touch-manipulation"
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-primary/10">
-                    <BookMarked className="h-5 w-5 text-primary" />
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <div className="p-1.5 sm:p-2 rounded-xl bg-primary/10 shrink-0">
+                    <BookMarked className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                   </div>
-                  <div>
-                    <h1 className="text-lg font-semibold">Settings</h1>
-                    <p className="text-sm text-muted-foreground">Manage your account and team</p>
+                  <div className="min-w-0">
+                    <h1 className="text-base sm:text-lg font-semibold truncate">Settings</h1>
+                    <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Manage your account and team</p>
                   </div>
                 </div>
               </div>
@@ -208,46 +208,47 @@ export default function SettingsPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => router.push('/super-admin')}
-                  className="gap-2"
+                  className="gap-1.5 sm:gap-2 text-xs sm:text-sm shrink-0"
                 >
-                  <Crown className="h-4 w-4 text-amber-500" />
-                  Admin Panel
+                  <Crown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-500" />
+                  <span className="hidden sm:inline">Admin Panel</span>
+                  <span className="sm:hidden">Admin</span>
                 </Button>
               )}
             </div>
           </div>
         </header>
 
-        <main className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-4 sm:space-y-6">
           {/* Account Section */}
           <Card className="border-border/50 shadow-sm">
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <UserIcon className="h-5 w-5 text-primary" />
+            <CardHeader className="pb-3 sm:pb-4 px-4 sm:px-6">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10 shrink-0">
+                  <UserIcon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 </div>
-                <div>
-                  <CardTitle className="text-lg">Account</CardTitle>
-                  <CardDescription>Your personal account information</CardDescription>
+                <div className="min-w-0">
+                  <CardTitle className="text-base sm:text-lg">Account</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Your personal account information</CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">Email Address</Label>
-                  <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{currentUser?.email || 'Not set'}</span>
+            <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
+              <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label className="text-xs sm:text-sm text-muted-foreground">Email Address</Label>
+                  <div className="flex items-center gap-2 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
+                    <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="font-medium text-sm sm:text-base truncate">{currentUser?.email || 'Not set'}</span>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">Role</Label>
-                  <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                    <Shield className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium capitalize">{currentUser?.role || 'User'}</span>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label className="text-xs sm:text-sm text-muted-foreground">Role</Label>
+                  <div className="flex items-center gap-2 p-2.5 sm:p-3 bg-muted/50 rounded-lg">
+                    <Shield className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="font-medium text-sm sm:text-base capitalize">{currentUser?.role || 'User'}</span>
                     {isSuperUser(currentUser) && (
-                      <Badge variant="default" className="ml-auto bg-amber-500/10 text-amber-600 border-amber-500/20">
+                      <Badge variant="default" className="ml-auto bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs">
                         <Crown className="h-3 w-3 mr-1" />
                         Admin
                       </Badge>
@@ -258,11 +259,11 @@ export default function SettingsPage() {
 
               <Separator />
 
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <Button
                   variant="outline"
                   onClick={() => currentUser?.email && handleSendPasswordReset(currentUser.email)}
-                  className="gap-2"
+                  className="gap-2 h-10 sm:h-9 w-full sm:w-auto justify-center"
                 >
                   <KeyRound className="h-4 w-4" />
                   Reset Password
@@ -270,7 +271,7 @@ export default function SettingsPage() {
                 <Button
                   variant="outline"
                   onClick={handleLogout}
-                  className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  className="gap-2 h-10 sm:h-9 w-full sm:w-auto justify-center text-destructive hover:bg-destructive/10 hover:text-destructive"
                 >
                   <LogOut className="h-4 w-4" />
                   Sign Out
@@ -281,43 +282,43 @@ export default function SettingsPage() {
 
           {/* Team Section */}
           <Card className="border-border/50 shadow-sm">
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-500/10">
-                    <Building2 className="h-5 w-5 text-blue-500" />
+            <CardHeader className="pb-3 sm:pb-4 px-4 sm:px-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-blue-500/10 shrink-0">
+                    <Building2 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
                   </div>
-                  <div>
-                    <CardTitle className="text-lg">Team</CardTitle>
-                    <CardDescription>
+                  <div className="min-w-0">
+                    <CardTitle className="text-base sm:text-lg">Team</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm truncate">
                       {currentTeam ? currentTeam.name : 'You are not part of any team'}
                     </CardDescription>
                   </div>
                 </div>
                 {isUserAdminState && (
-                  <Badge variant="secondary" className="gap-1">
+                  <Badge variant="secondary" className="gap-1 text-xs self-start sm:self-auto">
                     <Shield className="h-3 w-3" />
                     Team Admin
                   </Badge>
                 )}
               </div>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
               {currentUser?.teamId && currentTeam ? (
                 <>
                   {/* Add Team Member - Only for admins */}
                   {isUserAdminState && (
-                    <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
-                      <Label className="text-sm font-medium mb-3 block">Add Team Member</Label>
-                      <form onSubmit={handleAddMember} className="flex gap-2">
+                    <div className="p-3 sm:p-4 bg-muted/30 rounded-lg border border-border/50">
+                      <Label className="text-xs sm:text-sm font-medium mb-2 sm:mb-3 block">Add Team Member</Label>
+                      <form onSubmit={handleAddMember} className="flex flex-col sm:flex-row gap-2">
                         <Input
                           type="email"
                           placeholder="Enter email address"
                           value={newMemberEmail}
                           onChange={(e) => setNewMemberEmail(e.target.value)}
-                          className="flex-1"
+                          className="flex-1 h-10 sm:h-9"
                         />
-                        <Button type="submit" size="sm" className="gap-2">
+                        <Button type="submit" size="sm" className="gap-2 h-10 sm:h-9 w-full sm:w-auto">
                           <UserPlus className="h-4 w-4" />
                           Add
                         </Button>
@@ -326,30 +327,30 @@ export default function SettingsPage() {
                   )}
 
                   {/* Team Members List */}
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium">Team Members</Label>
-                      <span className="text-sm text-muted-foreground">{teamMembers.length} members</span>
+                      <Label className="text-xs sm:text-sm font-medium">Team Members</Label>
+                      <span className="text-xs sm:text-sm text-muted-foreground">{teamMembers.length} members</span>
                     </div>
                     <div className="divide-y divide-border/50 rounded-lg border border-border/50 overflow-hidden">
                       {teamMembers.map((member) => (
                         <div
                           key={member.id}
-                          className="flex items-center justify-between p-3 bg-card hover:bg-muted/30 transition-colors"
+                          className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-card hover:bg-muted/30 transition-colors gap-2 sm:gap-3"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                               <UserIcon className="h-4 w-4 text-primary" />
                             </div>
-                            <div>
-                              <p className="font-medium text-sm">{member.email}</p>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Calendar className="h-3 w-3" />
-                                Joined {new Date(member.joinedAt).toLocaleDateString()}
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">{member.email}</p>
+                              <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-muted-foreground">
+                                <Calendar className="h-3 w-3 shrink-0" />
+                                <span className="truncate">Joined {new Date(member.joinedAt).toLocaleDateString()}</span>
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 ml-10 sm:ml-0 shrink-0">
                             <Badge variant={member.role === 'admin' ? 'default' : 'secondary'} className="text-xs">
                               {member.role}
                             </Badge>
@@ -359,7 +360,7 @@ export default function SettingsPage() {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleSendPasswordReset(member.email)}
-                                  className="h-8 w-8 hover:bg-primary/10"
+                                  className="h-9 w-9 sm:h-8 sm:w-8 hover:bg-primary/10 touch-manipulation"
                                 >
                                   <KeyRound className="h-4 w-4" />
                                 </Button>
@@ -368,24 +369,24 @@ export default function SettingsPage() {
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                                      className="h-9 w-9 sm:h-8 sm:w-8 hover:bg-destructive/10 hover:text-destructive touch-manipulation"
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </AlertDialogTrigger>
                                   <AlertDialogContent>
                                     <AlertDialogHeader>
-                                      <AlertDialogTitle>Remove team member</AlertDialogTitle>
-                                      <AlertDialogDescription>
+                                      <AlertDialogTitle className="text-base sm:text-lg">Remove team member</AlertDialogTitle>
+                                      <AlertDialogDescription className="text-sm">
                                         Are you sure you want to remove {member.email} from your team?
                                         They will lose access to all team prompts.
                                       </AlertDialogDescription>
                                     </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+                                      <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
                                       <AlertDialogAction
                                         onClick={() => handleRemoveMember(member.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90 w-full sm:w-auto"
                                       >
                                         Remove
                                       </AlertDialogAction>
@@ -398,20 +399,20 @@ export default function SettingsPage() {
                         </div>
                       ))}
                       {teamMembers.length === 0 && (
-                        <div className="p-8 text-center text-muted-foreground">
-                          <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm">No team members yet</p>
+                        <div className="p-6 sm:p-8 text-center text-muted-foreground">
+                          <Users className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-xs sm:text-sm">No team members yet</p>
                         </div>
                       )}
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="p-8 text-center">
-                  <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
-                    <Users className="h-6 w-6 text-muted-foreground" />
+                <div className="p-6 sm:p-8 text-center">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-2 sm:mb-3">
+                    <Users className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
                   </div>
-                  <p className="text-muted-foreground text-sm">
+                  <p className="text-muted-foreground text-xs sm:text-sm">
                     You're not part of a team yet. Contact your administrator to be added to a team.
                   </p>
                 </div>
@@ -421,14 +422,14 @@ export default function SettingsPage() {
 
           {/* Quick Info */}
           <Card className="border-border/50 shadow-sm bg-muted/30">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-primary/10 shrink-0">
-                  <Shield className="h-4 w-4 text-primary" />
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-start gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10 shrink-0">
+                  <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
                 </div>
-                <div className="text-sm">
+                <div className="text-xs sm:text-sm min-w-0">
                   <p className="font-medium mb-1">About Sharing</p>
-                  <ul className="text-muted-foreground space-y-1">
+                  <ul className="text-muted-foreground space-y-0.5 sm:space-y-1">
                     <li>• <strong>Private</strong> prompts are visible only to you</li>
                     <li>• <strong>Team</strong> prompts are shared with all team members</li>
                     <li>• <strong>Community</strong> prompts are visible to everyone</li>

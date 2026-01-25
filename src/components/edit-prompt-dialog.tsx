@@ -98,23 +98,23 @@ export function EditPromptDialog({ children, prompt, onUpdatePrompt }: EditPromp
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[625px]">
+      <DialogContent className="w-full sm:max-w-[625px]">
         <DialogHeader>
-          <DialogTitle>Edit Prompt</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg sm:text-xl">Edit Prompt</DialogTitle>
+          <DialogDescription className="text-sm">
             Make changes to your prompt below.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
              <FormField
               control={form.control}
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Title</FormLabel>
+                  <FormLabel className="text-sm">Title</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Generate Marketing Copy" {...field} />
+                    <Input placeholder="e.g., Generate Marketing Copy" className="h-11 sm:h-10 text-base sm:text-sm" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -126,11 +126,11 @@ export function EditPromptDialog({ children, prompt, onUpdatePrompt }: EditPromp
               name="content"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Prompt Content</FormLabel>
+                  <FormLabel className="text-sm">Prompt Content</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Enter the full prompt text here..."
-                      className="min-h-[120px] font-mono"
+                      className="min-h-[100px] sm:min-h-[120px] font-mono text-sm"
                       {...field}
                     />
                   </FormControl>
@@ -144,11 +144,11 @@ export function EditPromptDialog({ children, prompt, onUpdatePrompt }: EditPromp
               name="tags"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tags</FormLabel>
+                  <FormLabel className="text-sm">Tags</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., marketing, ad copy, social media" {...field} />
+                    <Input placeholder="e.g., marketing, ad copy, social media" className="h-11 sm:h-10 text-base sm:text-sm" {...field} />
                   </FormControl>
-                  <FormDescription>
+                  <FormDescription className="text-xs sm:text-sm">
                     Separate tags with commas.
                   </FormDescription>
                   <FormMessage />
@@ -161,16 +161,16 @@ export function EditPromptDialog({ children, prompt, onUpdatePrompt }: EditPromp
               name="software"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Software / LLM</FormLabel>
+                  <FormLabel className="text-sm">Software / LLM</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-11 sm:h-10">
                         <SelectValue placeholder="Select a software..." />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {softwareOptions.map((option) => (
-                        <SelectItem key={option} value={option}>
+                        <SelectItem key={option} value={option} className="text-base sm:text-sm py-3 sm:py-2">
                           {option}
                         </SelectItem>
                       ))}
@@ -180,9 +180,9 @@ export function EditPromptDialog({ children, prompt, onUpdatePrompt }: EditPromp
                 </FormItem>
               )}
             />
-            
-            <DialogFooter>
-                <Button type="submit" disabled={form.formState.isSubmitting}>Save Changes</Button>
+
+            <DialogFooter className="pt-2">
+                <Button type="submit" disabled={form.formState.isSubmitting} className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm">Save Changes</Button>
             </DialogFooter>
           </form>
         </Form>

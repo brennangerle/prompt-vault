@@ -184,22 +184,22 @@ export default function PromptKeeperPage() {
         <div className="flex min-h-screen">
         <Sidebar className="dark border-r border-sidebar-border/50">
           <SidebarHeader>
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-primary/20 backdrop-blur-sm">
-                  <BookMarked className="size-7 text-primary animate-glow" />
+            <div className="flex items-center justify-between p-3 sm:p-4">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="p-1.5 sm:p-2 rounded-xl bg-primary/20 backdrop-blur-sm shrink-0">
+                  <BookMarked className="size-5 sm:size-7 text-primary animate-glow" />
                 </div>
-                <span className="text-xl font-bold text-sidebar-foreground bg-gradient-to-r from-sidebar-foreground to-primary bg-clip-text text-transparent">
+                <span className="text-base sm:text-xl font-bold text-sidebar-foreground bg-gradient-to-r from-sidebar-foreground to-primary bg-clip-text text-transparent truncate">
                   The Prompt Keeper
                 </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 {!isLoading && isSuperUser(currentUser) && (
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => router.push('/super-admin')}
-                    className="h-10 w-10 rounded-full hover:bg-primary/20 transition-all duration-300 border border-border/30"
+                    className="h-10 w-10 rounded-full hover:bg-primary/20 transition-all duration-300 border border-border/30 touch-manipulation"
                   >
                     <Crown className="h-5 w-5 text-primary" />
                   </Button>
@@ -208,15 +208,15 @@ export default function PromptKeeperPage() {
                   variant="ghost"
                   size="icon"
                   onClick={() => router.push('/settings')}
-                  className="h-10 w-10 rounded-full hover:bg-sidebar-accent/20 transition-all duration-300 border border-sidebar-border/30"
+                  className="h-10 w-10 rounded-full hover:bg-sidebar-accent/20 transition-all duration-300 border border-sidebar-border/30 touch-manipulation"
                 >
                   <Settings className="h-5 w-5 text-sidebar-foreground/70 hover:text-primary transition-colors duration-300" />
                 </Button>
               </div>
             </div>
           </SidebarHeader>
-          <SidebarContent className="px-3">
-            <SidebarMenu className="space-y-2">
+          <SidebarContent className="px-2 sm:px-3">
+            <SidebarMenu className="space-y-1 sm:space-y-2">
               {scopeData.map((scope) => {
                 const isDisabled = scope.disabled || (scope.requiresTeam && !currentUser?.teamId);
                 return (
@@ -225,53 +225,53 @@ export default function PromptKeeperPage() {
                       onClick={isDisabled ? undefined : () => handleScopeChange(scope.id)}
                       isActive={selectedScope === scope.id && !isDisabled}
                       disabled={isDisabled}
-                      className={`gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${
+                      className={`gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3 rounded-xl transition-all duration-300 group touch-manipulation ${
                         isDisabled
                           ? 'opacity-50 cursor-not-allowed text-muted-foreground'
                           : 'hover:bg-sidebar-accent/20 data-[active=true]:bg-primary/20 data-[active=true]:text-primary data-[active=true]:shadow-lg'
                       }`}
                     >
-                      <scope.icon className={`size-5 transition-colors duration-300 ${
+                      <scope.icon className={`size-5 transition-colors duration-300 shrink-0 ${
                         isDisabled
                           ? 'text-muted-foreground'
                           : 'text-sidebar-foreground/70 group-hover:text-primary group-data-[active=true]:text-primary'
                       }`} />
-                      <span className="font-medium">{scope.label}</span>
+                      <span className="font-medium text-sm sm:text-base truncate">{scope.label}</span>
                       {scope.requiresTeam && !currentUser?.teamId && (
-                        <span className="text-xs text-muted-foreground ml-auto">(No team)</span>
+                        <span className="text-xs text-muted-foreground ml-auto shrink-0">(No team)</span>
                       )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
               })}
             </SidebarMenu>
-            <SidebarSeparator className="my-6 bg-sidebar-border/30" />
+            <SidebarSeparator className="my-4 sm:my-6 bg-sidebar-border/30" />
             <SidebarGroup>
-              <SidebarGroupLabel className="text-sidebar-foreground/60 text-sm font-semibold mb-3 px-4">Folders</SidebarGroupLabel>
-              <SidebarMenu className="space-y-1">
+              <SidebarGroupLabel className="text-sidebar-foreground/60 text-xs sm:text-sm font-semibold mb-2 sm:mb-3 px-3 sm:px-4">Folders</SidebarGroupLabel>
+              <SidebarMenu className="space-y-0.5 sm:space-y-1">
                 {allTags.map((tag) => (
                   <SidebarMenuItem key={tag}>
                     <SidebarMenuButton
                       onClick={() => setSelectedTag(tag)}
                       isActive={selectedTag === tag}
-                      className="gap-3 px-4 py-2.5 rounded-lg hover:bg-sidebar-accent/10 transition-all duration-300 group data-[active=true]:bg-accent/20 data-[active=true]:text-accent"
+                      className="gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-2.5 rounded-lg hover:bg-sidebar-accent/10 transition-all duration-300 group data-[active=true]:bg-accent/20 data-[active=true]:text-accent touch-manipulation"
                     >
-                      <Folder className="size-4 text-sidebar-foreground/50 group-hover:text-accent group-data-[active=true]:text-accent transition-colors duration-300" />
-                      <span className="text-sm">{tag}</span>
+                      <Folder className="size-4 text-sidebar-foreground/50 group-hover:text-accent group-data-[active=true]:text-accent transition-colors duration-300 shrink-0" />
+                      <span className="text-sm truncate">{tag}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
             </SidebarGroup>
           </SidebarContent>
-          <SidebarFooter className="border-t border-sidebar-border/30 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+          <SidebarFooter className="border-t border-sidebar-border/30 p-3 sm:p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 sm:w-8 sm:h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                   <UserIcon className="h-4 w-4 text-primary" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-sidebar-foreground truncate">{currentUser?.email}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-sidebar-foreground truncate">{currentUser?.email}</p>
                   <p className="text-xs text-sidebar-foreground/60 capitalize">{currentUser?.role || 'User'}</p>
                 </div>
               </div>
@@ -282,27 +282,27 @@ export default function PromptKeeperPage() {
                   await logoutUser();
                   router.push('/login');
                 }}
-                className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive shrink-0"
+                className="h-10 w-10 sm:h-8 sm:w-8 rounded-full hover:bg-destructive/10 hover:text-destructive shrink-0 touch-manipulation"
               >
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
           </SidebarFooter>
         </Sidebar>
-        <div className="flex-1 bg-gradient-to-br from-background via-background to-primary/5">
-          <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border/50 backdrop-blur-md bg-background/80 p-6 sm:p-8">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger className="md:hidden h-10 w-10 rounded-xl hover:bg-primary/10 transition-all duration-300"/>
-              <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
+        <div className="flex-1 bg-gradient-to-br from-background via-background to-primary/5 min-w-0">
+          <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border/50 backdrop-blur-md bg-background/80 p-4 sm:p-6 lg:p-8">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+              <SidebarTrigger className="md:hidden h-10 w-10 rounded-xl hover:bg-primary/10 transition-all duration-300 shrink-0 touch-manipulation"/>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent truncate">
                       {scopeData.find(s => s.id === selectedScope)?.label}
                   </h1>
-                  <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                  <Badge variant="secondary" className="text-xs px-2 py-0.5 w-fit shrink-0">
                     {filteredPrompts.length} {filteredPrompts.length === 1 ? 'prompt' : 'prompts'}
                   </Badge>
                 </div>
-                <p className="text-muted-foreground mt-1 font-medium text-sm sm:text-base">
+                <p className="text-muted-foreground mt-1 font-medium text-xs sm:text-sm lg:text-base line-clamp-2 sm:line-clamp-1">
                     {selectedTag === 'All'
                       ? scopeData.find(s => s.id === selectedScope)?.description
                       : `Prompts tagged with "${selectedTag}"`}
@@ -310,10 +310,10 @@ export default function PromptKeeperPage() {
               </div>
             </div>
           </header>
-          <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto space-y-8">
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 sm:space-y-8">
               {selectedScope === 'private' && <QuickPromptForm onAddPrompt={addPrompt} />}
             {filteredPrompts.length > 0 ? (
-              <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-4 sm:gap-6">
                 {filteredPrompts.map((prompt) => (
                                     <PromptCard
                      key={prompt.id}
@@ -325,24 +325,24 @@ export default function PromptKeeperPage() {
               </div>
             ) : (
               <Card className="w-full border-0 glass-light">
-                <CardContent className="flex min-h-[280px] flex-col items-center justify-center p-12 text-center">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+                <CardContent className="flex min-h-[240px] sm:min-h-[280px] flex-col items-center justify-center p-6 sm:p-8 lg:p-12 text-center">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 sm:mb-6">
                     {selectedScope === 'private' ? (
-                      <UserIcon className="w-8 h-8 text-primary" />
+                      <UserIcon className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
                     ) : selectedScope === 'team' ? (
-                      <Users className="w-8 h-8 text-primary" />
+                      <Users className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
                     ) : (
-                      <Globe className="w-8 h-8 text-primary" />
+                      <Globe className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
                     )}
                   </div>
-                  <h2 className="text-2xl font-bold text-foreground mb-3">
+                  <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2 sm:mb-3">
                     {selectedScope === 'private'
                       ? 'Start Your Collection'
                       : selectedScope === 'team'
                       ? 'No Team Prompts Yet'
                       : 'Explore the Community'}
                   </h2>
-                  <p className="mt-2 max-w-md text-muted-foreground leading-relaxed mb-6">
+                  <p className="mt-1 sm:mt-2 max-w-md text-sm sm:text-base text-muted-foreground leading-relaxed mb-4 sm:mb-6">
                     {selectedScope === 'private'
                       ? 'Add your first prompt above to start building your personal library. Your prompts are private by default.'
                       : selectedScope === 'team'
@@ -352,7 +352,7 @@ export default function PromptKeeperPage() {
                   {selectedScope !== 'private' && (
                     <Button
                       onClick={() => handleScopeChange('private')}
-                      className="gap-2"
+                      className="gap-2 w-full sm:w-auto h-11 sm:h-10"
                     >
                       <UserIcon className="h-4 w-4" />
                       Go to My Library

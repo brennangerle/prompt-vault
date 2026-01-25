@@ -184,37 +184,37 @@ export default function LoginPage() {
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-6">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4 sm:p-6">
       <Card className="w-full max-w-lg border border-border/50 bg-card/50 backdrop-blur-sm shadow-xl hover:shadow-2xl hover:shadow-primary/15 transition-all duration-300 group">
-        <CardHeader className="text-center pb-8">
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <div className="p-3 rounded-2xl bg-primary/20 backdrop-blur-sm group-hover:bg-primary/30 transition-colors duration-300">
-              <BookMarked className="size-10 text-primary animate-glow" />
+        <CardHeader className="text-center pb-6 sm:pb-8 px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <div className="p-2.5 sm:p-3 rounded-2xl bg-primary/20 backdrop-blur-sm group-hover:bg-primary/30 transition-colors duration-300">
+              <BookMarked className="size-8 sm:size-10 text-primary animate-glow" />
             </div>
-            <span className="text-3xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
+            <span className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent text-center">
               The Prompt Keeper
             </span>
           </div>
-          <CardTitle className={`font-bold mb-3 transition-colors duration-300 ${
-            showCreateAccount 
-              ? 'text-3xl text-primary' 
-              : 'text-2xl group-hover:text-primary'
+          <CardTitle className={`font-bold mb-2 sm:mb-3 transition-colors duration-300 ${
+            showCreateAccount
+              ? 'text-2xl sm:text-3xl text-primary'
+              : 'text-xl sm:text-2xl group-hover:text-primary'
           }`}>
             {showCreateAccount ? 'Create New Account' : 'Welcome back'}
           </CardTitle>
           {!showCreateAccount && (
-            <p className="text-muted-foreground text-base leading-relaxed">
+            <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
               Sign in to access your prompt repository
             </p>
           )}
         </CardHeader>
-        <CardContent className="px-8 pb-8">
+        <CardContent className="px-4 sm:px-8 pb-6 sm:pb-8">
           {!showCreateAccount ? (
             // Login Form
             <>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-3">
-                  <Label htmlFor="email" className="text-base font-medium">Email</Label>
+              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+                <div className="space-y-2 sm:space-y-3">
+                  <Label htmlFor="email" className="text-sm sm:text-base font-medium">Email</Label>
                   <Input
                     id="email"
                     type="email"
@@ -222,11 +222,11 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
+                    className="h-11 sm:h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
                   />
                 </div>
-                <div className="space-y-3">
-                  <Label htmlFor="password" className="text-base font-medium">Password</Label>
+                <div className="space-y-2 sm:space-y-3">
+                  <Label htmlFor="password" className="text-sm sm:text-base font-medium">Password</Label>
                   <Input
                     id="password"
                     type="password"
@@ -234,33 +234,33 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
+                    className="h-11 sm:h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
                   />
                 </div>
-                
+
                 {error && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertDescription className="text-sm">{error}</AlertDescription>
                   </Alert>
                 )}
-                
+
                 <Button
                   type="submit"
-                  className="w-full h-12 gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 font-semibold text-base"
+                  className="w-full h-11 sm:h-12 gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 font-semibold text-base"
                   disabled={isLoading}
                 >
                   {isLoading ? 'Signing in...' : 'Sign in'}
                 </Button>
               </form>
-              
-              <div className="mt-8">
-                <Separator className="mb-6" />
+
+              <div className="mt-6 sm:mt-8">
+                <Separator className="mb-4 sm:mb-6" />
                 <div className="text-center">
                   <Button
                     variant="outline"
                     onClick={() => setShowCreateAccount(true)}
-                    className="w-full h-12 border-primary/20 text-primary hover:bg-primary/10 transition-all duration-300"
+                    className="w-full h-11 sm:h-12 border-primary/20 text-primary hover:bg-primary/10 transition-all duration-300"
                   >
                     Create New Account
                   </Button>
@@ -269,20 +269,20 @@ export default function LoginPage() {
             </>
           ) : (
             // Create Account Form
-            <div className="space-y-6">
-              
+            <div className="space-y-4 sm:space-y-6">
+
               {accountCreated && (
                 <Alert className="border-green-200 bg-green-50 text-green-800">
                   <AlertCircle className="h-4 w-4 text-green-600" />
-                  <AlertDescription>
+                  <AlertDescription className="text-sm">
                     Account created successfully! You can now use the credentials to log in.
                   </AlertDescription>
                 </Alert>
               )}
-              
-              <form onSubmit={handleCreateAccount} className="space-y-4">
-                <div className="space-y-3">
-                  <Label htmlFor="newEmail" className="text-base font-medium">Email Address</Label>
+
+              <form onSubmit={handleCreateAccount} className="space-y-3 sm:space-y-4">
+                <div className="space-y-2 sm:space-y-3">
+                  <Label htmlFor="newEmail" className="text-sm sm:text-base font-medium">Email Address</Label>
                   <Input
                     id="newEmail"
                     type="email"
@@ -290,12 +290,12 @@ export default function LoginPage() {
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
                     required
-                    className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
+                    className="h-11 sm:h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
                   />
                 </div>
-                
-                  <div className="space-y-3">
-                  <Label htmlFor="newPassword" className="text-base font-medium">Password</Label>
+
+                  <div className="space-y-2 sm:space-y-3">
+                  <Label htmlFor="newPassword" className="text-sm sm:text-base font-medium">Password</Label>
                   <div className="relative">
                     <Input
                       id="newPassword"
@@ -304,7 +304,7 @@ export default function LoginPage() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
-                      className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base pr-20"
+                      className="h-11 sm:h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base pr-20"
                     />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
                       <Button
@@ -312,7 +312,7 @@ export default function LoginPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="h-8 w-8 p-0 hover:bg-primary/10"
+                        className="h-9 w-9 sm:h-8 sm:w-8 p-0 hover:bg-primary/10 touch-manipulation"
                       >
                         {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
@@ -322,7 +322,7 @@ export default function LoginPage() {
                           size="sm"
                           variant="ghost"
                           onClick={handleCopyPassword}
-                          className="h-8 w-8 p-0 hover:bg-primary/10"
+                          className="h-9 w-9 sm:h-8 sm:w-8 p-0 hover:bg-primary/10 touch-manipulation"
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
@@ -333,20 +333,20 @@ export default function LoginPage() {
                     type="button"
                     variant="outline"
                     onClick={handleGeneratePassword}
-                    className="w-full h-10 border-primary/20 text-primary hover:bg-primary/10"
+                    className="w-full h-10 sm:h-10 border-primary/20 text-primary hover:bg-primary/10 text-sm"
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Generate Secure Password
                   </Button>
-                    <div className="space-y-2 rounded-lg border border-border/40 bg-background/40 p-3">
+                    <div className="space-y-2 rounded-lg border border-border/40 bg-background/40 p-2.5 sm:p-3">
                       <p className="text-xs font-medium text-muted-foreground">Password requirements</p>
-                      <ul className="space-y-1.5">
+                      <ul className="space-y-1 sm:space-y-1.5">
                         {passwordCheckResults.map((req) => (
                           <li key={req.id} className="flex items-center gap-2 text-xs">
                             {req.passed ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
                             ) : (
-                              <Circle className="h-3.5 w-3.5 text-muted-foreground/60" />
+                              <Circle className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
                             )}
                             <span className={req.passed ? 'text-emerald-600' : 'text-muted-foreground'}>
                               {req.label}
@@ -357,8 +357,8 @@ export default function LoginPage() {
                     </div>
                 </div>
 
-                <div className="space-y-3">
-                  <Label htmlFor="confirmPassword" className="text-base font-medium">Confirm Password</Label>
+                <div className="space-y-2 sm:space-y-3">
+                  <Label htmlFor="confirmPassword" className="text-sm sm:text-base font-medium">Confirm Password</Label>
                   <Input
                     id="confirmPassword"
                     type={showNewPassword ? 'text' : 'password'}
@@ -366,18 +366,18 @@ export default function LoginPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    className="h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
+                    className="h-11 sm:h-12 bg-background/50 backdrop-blur-sm border-border/50 focus:border-primary/50 focus:ring-primary/20 text-base"
                   />
                 </div>
-                
+
                 {createAccountError && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{createAccountError}</AlertDescription>
+                    <AlertDescription className="text-sm">{createAccountError}</AlertDescription>
                   </Alert>
                 )}
-                
-                <div className="flex gap-3">
+
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -389,14 +389,14 @@ export default function LoginPage() {
                       setCreateAccountError(null);
                       setAccountCreated(false);
                     }}
-                    className="flex-1 h-12"
+                    className="w-full sm:flex-1 h-11 sm:h-12 order-2 sm:order-1"
                   >
                     Back to Login
                   </Button>
                   <Button
                     type="submit"
                       disabled={isCreatingAccount || !newEmail || !newPassword || !confirmPassword || !isPasswordValid}
-                    className="flex-1 h-12 gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 font-semibold"
+                    className="w-full sm:flex-1 h-11 sm:h-12 gradient-primary hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 font-semibold order-1 sm:order-2"
                   >
                     {isCreatingAccount ? 'Creating Account...' : 'Create Account'}
                   </Button>
