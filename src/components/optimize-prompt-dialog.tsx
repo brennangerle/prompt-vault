@@ -68,22 +68,22 @@ export function OptimizePromptDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full sm:max-w-4xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Optimize Prompt</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg sm:text-xl">Optimize Prompt</DialogTitle>
+          <DialogDescription className="text-sm">
             Our AI will analyze your prompt and suggest improvements.
           </DialogDescription>
         </DialogHeader>
 
         {isLoading && (
-          <div className="space-y-4 py-4">
-            <Skeleton className="h-8 w-1/3" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-8 w-1/4" />
+          <div className="space-y-3 sm:space-y-4 py-3 sm:py-4">
+            <Skeleton className="h-6 sm:h-8 w-1/3" />
+            <Skeleton className="h-20 sm:h-24 w-full" />
+            <Skeleton className="h-6 sm:h-8 w-1/4" />
             <div className="space-y-2">
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-6 w-5/6" />
+              <Skeleton className="h-5 sm:h-6 w-full" />
+              <Skeleton className="h-5 sm:h-6 w-5/6" />
             </div>
           </div>
         )}
@@ -96,19 +96,19 @@ export function OptimizePromptDialog({
         )}
 
         {result && (
-          <div className="space-y-6 py-4">
+          <div className="space-y-4 sm:space-y-6 py-3 sm:py-4">
             <div>
-              <h3 className="font-semibold text-foreground mb-3">Optimized Prompt</h3>
-              <div className="max-h-96 overflow-y-auto rounded-md border bg-muted p-4">
-                <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
+              <h3 className="font-semibold text-foreground mb-2 sm:mb-3 text-sm sm:text-base">Optimized Prompt</h3>
+              <div className="max-h-60 sm:max-h-96 overflow-y-auto rounded-md border bg-muted p-3 sm:p-4">
+                <pre className="whitespace-pre-wrap break-words text-xs sm:text-sm font-mono leading-relaxed">
                   {result.optimizedPrompt}
                 </pre>
               </div>
             </div>
             <div>
-              <h3 className="font-semibold text-foreground mb-3">Suggestions</h3>
-              <div className="max-h-48 overflow-y-auto">
-                <ul className="list-inside list-disc space-y-2 text-sm text-muted-foreground">
+              <h3 className="font-semibold text-foreground mb-2 sm:mb-3 text-sm sm:text-base">Suggestions</h3>
+              <div className="max-h-36 sm:max-h-48 overflow-y-auto">
+                <ul className="list-inside list-disc space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-muted-foreground">
                   {result.suggestions.map((suggestion, index) => (
                     <li key={index} className="leading-relaxed">{suggestion}</li>
                   ))}
@@ -118,9 +118,9 @@ export function OptimizePromptDialog({
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="pt-2">
           {result && (
-            <Button onClick={handleApply} className="gap-2">
+            <Button onClick={handleApply} className="w-full sm:w-auto gap-2 h-11 sm:h-10">
               <ThumbsUp className="h-4 w-4" /> Apply Optimization
             </Button>
           )}

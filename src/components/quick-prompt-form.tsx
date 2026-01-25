@@ -74,18 +74,18 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
   };
   
   return (
-    <Card className="w-full mb-6 sm:mb-8 border border-border/50 bg-card/50 backdrop-blur-sm group hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
-        <CardHeader className="py-5">
-            <CardTitle className="text-lg sm:text-xl font-semibold flex items-center gap-3 text-foreground group-hover:text-primary transition-colors duration-300">
-                <div className="p-2.5 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors duration-300">
-                    <Plus className="size-5 text-primary" />
+    <Card className="w-full mb-4 sm:mb-6 lg:mb-8 border border-border/50 bg-card/50 backdrop-blur-sm group hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
+        <CardHeader className="py-4 sm:py-5 px-4 sm:px-6">
+            <CardTitle className="text-base sm:text-lg lg:text-xl font-semibold flex items-center gap-2 sm:gap-3 text-foreground group-hover:text-primary transition-colors duration-300">
+                <div className="p-2 sm:p-2.5 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors duration-300">
+                    <Plus className="size-4 sm:size-5 text-primary" />
                 </div>
                 Add New Prompt
             </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
             <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
                 <FormField
                 control={form.control}
                 name="content"
@@ -96,10 +96,10 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
                         <div className="relative group/textarea">
                         <Textarea
                             placeholder="Paste your prompt here to add it to your repository. We'll use AI to automatically generate a title and tags."
-                            className="min-h-[140px] font-mono text-sm pr-14 bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:bg-background transition-all duration-300 resize-none"
+                            className="min-h-[120px] sm:min-h-[140px] font-mono text-sm pr-12 sm:pr-14 bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 focus:bg-background transition-all duration-300 resize-none"
                             {...field}
                         />
-                        <div className="absolute bottom-3 right-3">
+                        <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3">
                             <OptimizePromptDialog
                             promptContent={contentValue}
                             onApply={handleOptimizedPromptApply}
@@ -108,7 +108,7 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-9 w-9 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-300 group-hover/textarea:shadow-lg"
+                                className="h-10 w-10 sm:h-9 sm:w-9 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-300 group-hover/textarea:shadow-lg touch-manipulation"
                                 disabled={!contentValue || contentValue.length < 20}
                             >
                                 <Wand2 className="h-4 w-4" />
@@ -122,19 +122,19 @@ export function QuickPromptForm({ onAddPrompt }: QuickPromptFormProps) {
                     </FormItem>
                 )}
                 />
-                
+
                 {error && (
                     <Alert variant="destructive">
                         <AlertTitle>Error</AlertTitle>
                         <AlertDescription>{error}</AlertDescription>
                     </Alert>
                 )}
-                
-                <div className="flex justify-end pt-2">
+
+                <div className="flex justify-end pt-1 sm:pt-2">
                     <Button
                         type="submit"
                         disabled={isLoading || form.formState.isSubmitting || !contentValue || contentValue.length < 20}
-                        className="w-full sm:w-auto gap-2 font-medium px-6 py-2.5 transition-all duration-300"
+                        className="w-full sm:w-auto gap-2 font-medium px-4 sm:px-6 h-11 sm:h-10 text-base sm:text-sm transition-all duration-300"
                     >
                         {isLoading ? (
                           <>
