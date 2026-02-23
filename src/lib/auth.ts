@@ -204,7 +204,7 @@ async function createOrGetSuperUser(): Promise<User> {
 
     if (user.id !== firebaseUser.uid) {
       logger.debug('Migrating super user record to auth UID');
-      const { id: _legacyId, ...legacyData } = user;
+      const { id: legacyId, ...legacyData } = user;
       const normalizedData: Omit<User, 'id'> = {
         ...legacyData,
         email: superUserAccount.email,
@@ -214,8 +214,8 @@ async function createOrGetSuperUser(): Promise<User> {
       logger.info('Super user data migrated', { context: { newUid: firebaseUser.uid } });
 
       try {
-        await deleteUserRecord(user.id);
-        logger.debug('Removed legacy super user record', { context: { legacyId: user.id } });
+        await deleteUserRecord(legacyId);
+        logger.debug('Removed legacy super user record', { context: { legacyId } });
       } catch (migrationError) {
         logger.warn('Failed to remove legacy super user entry', { context: { error: migrationError } });
       }
