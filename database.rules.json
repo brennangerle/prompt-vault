@@ -16,8 +16,8 @@
     "audit-logs": {
       ".indexOn": ["timestamp", "userId", "action"],
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'super_user'",
-      ".write": "auth != null",
       "$logId": {
+        ".write": "auth != null && !data.exists() && newData.child('userId').val() == auth.uid",
         ".validate": "newData.hasChildren(['action', 'userId', 'timestamp'])"
       }
     },
