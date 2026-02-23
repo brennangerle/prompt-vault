@@ -324,9 +324,15 @@ export async function ensureEmailVerificationEntries(): Promise<void> {
   const users = await getAllUsers();
   logger.info('Checking email verification entries', { context: { userCount: users.length } });
 
+  // Batch fetch all existing verification entries to avoid N+1 queries
+  const existingEntries = await listEmailVerificationEntries();
+  const entryMap = new Map(existingEntries.map(entry => [entry.email.toLowerCase(), entry]));
+
   for (const user of users) {
-    const emailVerification = await verifyEmailExists(user.email);
-    if (!emailVerification.exists || emailVerification.expired) {
+    const normalizedEmail = user.email.toLowerCase();
+    const entry = entryMap.get(normalizedEmail);
+
+    if (!entry || entry.expired) {
       logger.debug('Creating/refreshing email verification entry', { context: { email: user.email } });
       await createEmailVerificationEntry(user.email, user.id, user.teamId);
     }
