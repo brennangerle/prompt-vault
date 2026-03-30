@@ -45,15 +45,13 @@ export async function POST(req: Request) {
   try {
     switch (event.type) {
         case "payout.paid":
-            const payout = event.data.object as Stripe.Payout;
-            console.log(`💰 Payout paid! ${payout.amount} ${payout.currency}`);
+            // Handle paid payout
             break;
         case "invoice.created":
-            const invoice = event.data.object as Stripe.Invoice;
-            console.log(`🧾 Invoice created! ${invoice.id}`);
+            // Handle created invoice
             break;
         default:
-            console.log(`Unhandled event type ${event.type}`);
+            // Unhandled event type
     }
   } catch (error: any) {
     console.error(`Error handling event: ${error.message}`);
