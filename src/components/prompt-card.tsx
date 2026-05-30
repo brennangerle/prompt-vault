@@ -39,12 +39,36 @@ export function PromptCard({ prompt, onUpdatePrompt, onDeletePrompt }: PromptCar
   const { toast } = useToast();
   const [isExpanded, setIsExpanded] = React.useState(false);
 
-  const handleCopy = (e: React.MouseEvent) => {
+  const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(prompt.content);
-    setIsCopied(true);
-    toast({ title: 'Copied to clipboard!' });
-    setTimeout(() => setIsCopied(false), 2000);
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(prompt.content);
+      } else {
+        // Fallback for insecure contexts (e.g. plain HTTP) where the
+        // Clipboard API is unavailable.
+        const textarea = document.createElement('textarea');
+        textarea.value = prompt.content;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        const succeeded = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (!succeeded) throw new Error('Copy command was rejected.');
+      }
+      setIsCopied(true);
+      toast({ title: 'Copied to clipboard!' });
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy prompt:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Copy failed',
+        description: 'Unable to copy to clipboard. Please copy the text manually.',
+      });
+    }
   };
 
   const handleUpdateContent = (newContent: string) => {
