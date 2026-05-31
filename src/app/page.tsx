@@ -10,6 +10,8 @@ import {
   Users,
   Settings,
   Crown,
+  Search,
+  X,
 } from 'lucide-react';
 import { AuthGuard } from '@/components/auth-guard';
 import {
@@ -34,17 +36,17 @@ import { PromptCard } from '@/components/prompt-card';
 import { QuickPromptForm } from '@/components/quick-prompt-form';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
-import { 
-  subscribeToPrompts, 
-  createPrompt, 
-  updatePrompt, 
+import {
+  subscribeToPrompts,
+  createPrompt,
+  updatePrompt,
   deletePrompt,
-  getPromptsBySharing 
 } from '@/lib/db';
 import { useUser } from '@/lib/user-context';
-import { isSuperUser, canEditPrompt, canDeletePrompt } from '@/lib/permissions';
-import type { User } from '@/lib/types';
+import { isSuperUser } from '@/lib/permissions';
+import { useToast } from '@/hooks/use-toast';
 
 type SharingScope = 'private' | 'team' | 'community';
 
@@ -58,7 +60,9 @@ export default function PromptKeeperPage() {
   const [prompts, setPrompts] = React.useState<Prompt[]>([]);
   const [selectedTag, setSelectedTag] = React.useState<string | 'All'>('All');
   const [selectedScope, setSelectedScope] = React.useState<SharingScope>('private');
+  const [searchQuery, setSearchQuery] = React.useState('');
   const { currentUser, isLoading } = useUser();
+  const { toast } = useToast();
   const router = useRouter();
 
   // Subscribe to prompts based on selected scope
@@ -108,6 +112,11 @@ export default function PromptKeeperPage() {
       await createPrompt(newPrompt);
     } catch (error) {
       console.error('Failed to create prompt:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Failed to add prompt',
+        description: 'Something went wrong while saving. Please try again.',
+      });
     }
   };
 
@@ -116,34 +125,41 @@ export default function PromptKeeperPage() {
       await updatePrompt(updatedPrompt.id, updatedPrompt);
     } catch (error) {
       console.error('Failed to update prompt:', error);
-      // Show error message to user
       const errorMessage = error instanceof Error ? error.message : 'Failed to update prompt';
-      if (errorMessage.includes('Unauthorized')) {
-        alert('Only the prompt keeper can edit prompts.');
-      } else {
-        alert('Failed to update prompt. Please try again.');
-      }
+      toast({
+        variant: 'destructive',
+        title: 'Failed to update prompt',
+        description: errorMessage.includes('Unauthorized')
+          ? 'Only the prompt keeper can edit this prompt.'
+          : 'Something went wrong. Please try again.',
+      });
     }
   };
 
   const deletePromptHandler = async (id: string) => {
     try {
       await deletePrompt(id);
+      toast({
+        title: 'Prompt deleted',
+        description: 'The prompt has been removed from your library.',
+      });
     } catch (error) {
       console.error('Failed to delete prompt:', error);
-      // Show error message to user
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete prompt';
-      if (errorMessage.includes('Unauthorized')) {
-        alert('Only the prompt keeper can delete prompts.');
-      } else {
-        alert('Failed to delete prompt. Please try again.');
-      }
+      toast({
+        variant: 'destructive',
+        title: 'Failed to delete prompt',
+        description: errorMessage.includes('Unauthorized')
+          ? 'Only the prompt keeper can delete this prompt.'
+          : 'Something went wrong. Please try again.',
+      });
     }
   };
-  
+
   const handleScopeChange = (scope: SharingScope) => {
     setSelectedScope(scope);
     setSelectedTag('All');
+    setSearchQuery('');
   };
 
   const scopeFilteredPrompts = React.useMemo(() => {
@@ -161,11 +177,23 @@ export default function PromptKeeperPage() {
     return ['All', ...Array.from(tagsSet).sort()];
   }, [scopeFilteredPrompts]);
 
-  const filteredPrompts = React.useMemo(() =>
-    selectedTag === 'All'
+  const filteredPrompts = React.useMemo(() => {
+    const byTag = selectedTag === 'All'
       ? scopeFilteredPrompts
-      : scopeFilteredPrompts.filter((p) => p.tags.includes(selectedTag))
-  , [scopeFilteredPrompts, selectedTag]);
+      : scopeFilteredPrompts.filter((p) => p.tags.includes(selectedTag));
+
+    const trimmedQuery = searchQuery.trim().toLowerCase();
+    if (!trimmedQuery) return byTag;
+
+    return byTag.filter((p) =>
+      p.title.toLowerCase().includes(trimmedQuery) ||
+      p.content.toLowerCase().includes(trimmedQuery) ||
+      p.tags.some((tag) => tag.toLowerCase().includes(trimmedQuery)) ||
+      (p.software?.toLowerCase().includes(trimmedQuery) ?? false)
+    );
+  }, [scopeFilteredPrompts, selectedTag, searchQuery]);
+
+  const isSearching = searchQuery.trim().length > 0;
 
   if (isLoading) {
     return (
@@ -309,6 +337,28 @@ export default function PromptKeeperPage() {
                 </p>
               </div>
             </div>
+            <div className="relative w-full max-w-[200px] sm:max-w-xs shrink-0 ml-2 sm:ml-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search prompts..."
+                aria-label="Search prompts"
+                className="h-10 pl-9 pr-9 bg-background/60 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-300"
+              />
+              {isSearching && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full hover:bg-muted touch-manipulation"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
           </header>
           <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 sm:space-y-8">
               {selectedScope === 'private' && <QuickPromptForm onAddPrompt={addPrompt} />}
@@ -327,7 +377,9 @@ export default function PromptKeeperPage() {
               <Card className="w-full border-0 glass-light">
                 <CardContent className="flex min-h-[240px] sm:min-h-[280px] flex-col items-center justify-center p-6 sm:p-8 lg:p-12 text-center">
                   <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 sm:mb-6">
-                    {selectedScope === 'private' ? (
+                    {isSearching ? (
+                      <Search className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
+                    ) : selectedScope === 'private' ? (
                       <UserIcon className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
                     ) : selectedScope === 'team' ? (
                       <Users className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
@@ -336,20 +388,33 @@ export default function PromptKeeperPage() {
                     )}
                   </div>
                   <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-2 sm:mb-3">
-                    {selectedScope === 'private'
+                    {isSearching
+                      ? 'No Matching Prompts'
+                      : selectedScope === 'private'
                       ? 'Start Your Collection'
                       : selectedScope === 'team'
                       ? 'No Team Prompts Yet'
                       : 'Explore the Community'}
                   </h2>
                   <p className="mt-1 sm:mt-2 max-w-md text-sm sm:text-base text-muted-foreground leading-relaxed mb-4 sm:mb-6">
-                    {selectedScope === 'private'
+                    {isSearching
+                      ? `No prompts match "${searchQuery.trim()}". Try a different search term.`
+                      : selectedScope === 'private'
                       ? 'Add your first prompt above to start building your personal library. Your prompts are private by default.'
                       : selectedScope === 'team'
                       ? 'Your team hasn\'t shared any prompts yet. Create a prompt and share it with your team.'
                       : 'No community prompts available. Be the first to share a prompt with the community!'}
                   </p>
-                  {selectedScope !== 'private' && (
+                  {isSearching ? (
+                    <Button
+                      onClick={() => setSearchQuery('')}
+                      variant="outline"
+                      className="gap-2 w-full sm:w-auto h-11 sm:h-10"
+                    >
+                      <X className="h-4 w-4" />
+                      Clear Search
+                    </Button>
+                  ) : selectedScope !== 'private' && (
                     <Button
                       onClick={() => handleScopeChange('private')}
                       className="gap-2 w-full sm:w-auto h-11 sm:h-10"
